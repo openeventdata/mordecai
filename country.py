@@ -7,12 +7,12 @@
 # Example: curl -XPOST -H "Content-Type: application/json"  --data '{"text":"On 12 August, the Independent Shafaq News Agency cited medical and security sources saying that fierce clashes broke out today in Tikrit, between the popular mobilization forces and elements of the terrorist DAISH. The sources added that the clashes resulted in the killing of 10 members of the popular mobilization and dozens from DAISH."}' 'http://192.168.50.236:8999/services/mordecai/osc' 
 
 from __future__ import unicode_literals
-import requests
 import json
 import requests
 import re
 import tangelo
 import sys, os
+import utilities
 
 import pandas as pd
 from pyelasticsearch import ElasticSearch
@@ -22,38 +22,11 @@ parent = os.path.dirname(os.path.realpath(__file__))
 sys.path.append('/home/admin1/MITIE/mitielib')
 
 from mitie import *
+
 # Plan: load up several of these custom MITIE models and allow a parameter passed
 #       in the POST to pick which NER model to use.
-ner = named_entity_extractor('/home/admin1/MITIE/MITIE-models/english/ner_model.dat')
 
-
-def talk_to_mitie(text):
-# Function that accepts text to MITIE and gets entities and HTML in response
-    text = text.encode("utf-8")
-    tokens = tokenize(text)
-    tokens.append(' x ')
-    entities = ner.extract_entities(tokens) # eventually, handle different NER models.
-    out = []
-    for e in entities:
-        range = e[0]
-        tag = e[1]
-        score = e[2]
-        entity_text = str(" ").join(tokens[i] for i in range)
-        out.append({u'tag' : unicode(tag), u'text' : entity_text, u'score':score})
-    for e in reversed(entities):
-        range = e[0]
-        tag = e[1]
-        newt = tokens[range[0]]
-        if len(range) > 1:
-            for i in range:
-                if i != range[0]:
-                    newt += str(' ') + tokens[i]
-        newt = str('<span class="mitie-') + tag  + str('">') + newt + str('</span>')
-        tokens = tokens[:range[0]] + [newt] + tokens[(range[-1] + 1):]
-    del tokens[-1]
-    html = str(' ').join(tokens)
-    htmlu = unicode(html.decode("utf-8"))
-    return {"entities" : out, "html" : htmlu}
+#ner = named_entity_extractor('/home/admin1/MITIE/MITIE-models/english/ner_model.dat')
 
 placenames = {"Afghanistan":"AFG", "Åland Islands":"ALA", "Albania":"ALB", "Algeria":"DZA",
 "American Samoa":"ASM", "Andorra":"AND", "Angola":"AGO", "Anguilla":"AIA",
@@ -133,11 +106,18 @@ placenames = {"Afghanistan":"AFG", "Åland Islands":"ALA", "Albania":"ALB", "Alg
 
 
 @tangelo.restful
+def get():
+    return """
+    This service expects a POST in the form '{"text":"On 12 August, the BBC reported that..."}'
+    It will return a list of ISO 3 character country codes for the country or countries it thinks the 
+    text is about.
+    """
+
+@tangelo.restful
 def post(*arg, **kwargs):
     params = json.loads(tangelo.request_body().read())
     text  = params['text']
     # future: add place for title here?
-    print text 
     bothn = []
 
     for n in placenames.keys():
@@ -147,11 +127,10 @@ def post(*arg, **kwargs):
             bothn.append(placenames[n])
        
  
-    print bothn
     if bothn == []:
         print "Using text_to_country"
-       # print text_to_country(r['sentence'])
-    out = talk_to_mitie(text)
+    #    print utilities.text_to_country(text)
+    out = utilities.talk_to_mitie(text)
     print "MITIE output:",
     for i in out['entities']:
         if i['tag'] == "LOCATION" or i['tag'] == "location":
