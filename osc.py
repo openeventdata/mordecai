@@ -4,7 +4,7 @@
 #
 # osc.py is a full-pipeline version optimized for our OSC stories
 #
-# Example: curl -XPOST -H "Content-Type: application/json"  --data '{"text":"On 12 August, the Independent Shafaq News Agency cited medical and security sources saying that fierce clashes broke out today in Tikrit, between the popular mobilization forces and elements of the terrorist DAISH. The sources added that the clashes resulted in the killing of 10 members of the popular mobilization and dozens from DAISH."}' 'http://192.168.50.236:8999/services/mordecai' 
+# Example: curl -XPOST -H "Content-Type: application/json"  --data '{"text":"On 12 August, the Independent Shafaq News Agency cited medical and security sources saying that fierce clashes broke out today in Tikrit, between the popular mobilization forces and elements of the terrorist DAISH. The sources added that the clashes resulted in the killing of 10 members of the popular mobilization and dozens from DAISH."}' 'http://192.168.50.236:8999/services/mordecai/osc' 
 
 from __future__ import unicode_literals
 import requests
@@ -269,7 +269,7 @@ def post(*arg, **kwargs):
              searchterm = re.sub("Dar 'a", "Dar'a", searchterm)
              t = query_geonames(searchterm, country_filter)  
              loc = pick_best_result(t, i['text'])
-             # loc is a nice format for debugging and looks like [35.13179, 36.75783, 'searchterm', u'matchname', u'feature_class']: 
+             # loc is a nice format for debugging and looks like [35.13179, 36.75783, 'searchterm', u'matchname', u'feature_class', u'country_code3']: 
              formatted_loc = {"lat":loc[0], "lon":loc[1], "seachterm":loc[2], "placename":loc[3], "countrycode":loc[5]}
              return formatted_loc
 
