@@ -1,0 +1,25 @@
+{
+    "geoname" : {
+        "properties" : {
+           	"geonameid" : {"type" : "string", "index":    "not_analyzed"},
+           	"name" : {"type" : "string", "index":  "not_analyzed"},
+		"asciiname" : {"type" : "string"},
+		"alternativenames" : {"type" : "string", "index_name" : "tag"},
+		"coordinates" : {"type" : "geo_point"},
+		"feature_class" :  {"type" : "string", "index":    "not_analyzed"},
+		"feature_code" : {"type" : "string", "index":    "not_analyzed"},
+		"country_code2" : {"type" : "string", "index":    "not_analyzed"},
+		"country_code3" : {"type" : "string", "index":    "not_analyzed"},
+		"cc2" :  {"type" : "string", "index_name" : "tag"}, 
+		"admin1_code" : {"type" : "string", "index":  "not_analyzed"},
+		"admin2_code" : {"type" : "string", "index":  "not_analyzed"},
+		"admin3_code" : {"type" : "string", "index":  "not_analyzed"},
+		"admin4_code" : {"type" : "string", "index":  "not_analyzed"},
+		"population" : {"type" :  "long"},
+		"elevation" : {"type" :  "long"},
+		"dem" : {"type" :  "long"},
+		"timzeone" :  {"type" : "string", "index":  "not_analyzed"},
+		"modification_date" : {"type" : "date", "format": "date"}
+        }
+    }
+}
