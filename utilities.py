@@ -42,7 +42,7 @@ def talk_to_mitie(text):
     htmlu = unicode(html.decode("utf-8"))
     return {"entities" : out, "html" : htmlu}
 
-def query_geonames(placename):
+def query_geonames_simple(placename):
     payload = {
     "query": {
         "filtered": {
@@ -54,6 +54,29 @@ def query_geonames(placename):
         }
     }
     }
+
+def query_geonames(placename, country_filter):
+    payload = {
+    "query": {
+        "filtered": {
+            "query": {
+                "query_string": {
+                    "query": placename
+                }
+            },
+                "filter": {
+                     "terms" : {
+                        "country_code3": country_filter
+                        }
+                    }
+                }
+            }
+        }
+
+    out = requests.post("http://localhost:9200/geonames/_search?pretty", data=json.dumps(payload))
+    return out.json()
+    # e.g.: query_geonames("Aleppo", ["IRQ", "SYR"])
+
 
 
 def text_to_country(text):
@@ -86,3 +109,4 @@ def text_to_country(text):
         return total
     else:
         return []
+

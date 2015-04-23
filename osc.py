@@ -17,6 +17,7 @@ import tangelo
 # import pandas as pd
 from pyelasticsearch import ElasticSearch
 import sys, os
+import utilities
 
 parent = os.path.dirname(os.path.realpath(__file__))
 sys.path.append('/home/admin1/MITIE/mitielib')
@@ -71,35 +72,6 @@ country_names = ["Afghanistan","Åland Islands","Albania","Algeria","American Sa
                  "Vanuatu","Vatican City","Venezuela","Vietnam","Wallis and Futuna","Western Sahara","Yemen",
                  "Zambia","Zimbabwe", "Europe", "America", "Africa", "Asia", "North America", "South America",
                  "United Nations","UN"]
-
-
-def talk_to_mitie(text):
-# Function that accepts text to MITIE and gets entities and HTML in response
-    text = text.encode("utf-8")
-    tokens = tokenize(text)
-    tokens.append(' x ')
-    entities = ner_osc.extract_entities(tokens) # eventually, handle different NER models.
-    out = [];
-    for e in entities:
-        range = e[0]
-        tag = e[1]
-        score = e[2]
-        entity_text = str(" ").join(tokens[i] for i in range)
-        out.append({u'tag' : unicode(tag), u'text' : entity_text, u'score':score})  
-    for e in reversed(entities):
-        range = e[0]
-        tag = e[1]
-        newt = tokens[range[0]]
-        if len(range) > 1:
-            for i in range:
-                if i != range[0]:
-                    newt += str(' ') + tokens[i]
-        newt = str('<span class="mitie-') + tag  + str('">') + newt + str('</span>')
-        tokens = tokens[:range[0]] + [newt] + tokens[(range[-1] + 1):]
-    del tokens[-1]
-    html = str(' ').join(tokens)
-    htmlu = unicode(html.decode("utf-8"))
-    return {"entities" : out, "html" : htmlu}
 
 def query_geonames(placename, country_filter):
     payload = {
@@ -258,7 +230,7 @@ def post(*arg, **kwargs):
         
     locations = []
         
-    out = talk_to_mitie(text)
+    out = utilities.talk_to_mitie(text)
     for i in out['entities']:
          print i['text'],
          if i['text'] in country_names:
