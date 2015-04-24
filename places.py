@@ -24,7 +24,8 @@ sys.path.append('/home/admin1/MITIE/mitielib')
 from mitie import *
 # Plan: load up several of these custom MITIE models and allow a parameter passed
 #       in the POST to pick which NER model to use.
-ner_osc = named_entity_extractor('/home/admin1/MITIE/custom_location_ner2.dat')
+
+#ner = named_entity_extractor('/home/admin1/MITIE/MITIE-models/english/ner_model.dat')
 
 es = ElasticSearch(urls='http://localhost:9200', timeout=60, max_retries=2)
 
@@ -199,7 +200,7 @@ def pick_best_result(results, term):
             return loc
 
 
-
+place_cache = {}
 
 
 @tangelo.restful
@@ -218,27 +219,31 @@ def post(*arg, **kwargs):
     text  = params['text']
 
     country = requests.post("http://192.168.50.236:8999/services/mordecai/country", data=json.dumps({"text":text}))
-    print country.text
     country_filter = [country.text]
     
     locations = []
 
     out = utilities.talk_to_mitie(text)
     for i in out['entities']:
-         print i['text'],
          if i['text'] in country_names:
              print " (Country/blacklist. Skipping...)"
          elif i['tag'] == "LOCATION" or i['tag'] == "Location":
             try:
                 searchterm = re.sub(r"Governorate|District|Subdistrict|Airport", "", i['text']).strip() #put this in query_geonames?
                 searchterm = re.sub("Dar 'a", "Dar'a", searchterm)
-                t = utilities.query_geonames(searchterm, country_filter)
+                try:
+                    t = place_cache[searchterm]
+                except:
+                    t = utilities.query_geonames(searchterm, country_filter)
+                    place_cache[searchterm] = t
                 loc = pick_best_result(t, i['text'])
                 # loc is a nice format for debugging and looks like [35.13179, 36.75783, 'searchterm', u'matchname', u'feature_class', u'country_code3']: 
                 formatted_loc = {"lat":loc[0], "lon":loc[1], "seachterm":loc[2], "placename":loc[3], "countrycode":loc[5]}
                 locations.append(formatted_loc)
             except:
-                print loc
+                pass
 
+    print "Place cache is ",
+    print len(place_cache)
     return json.dumps(locations)
 
