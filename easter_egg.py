@@ -13,6 +13,8 @@ output = """
 \/_/    / / // / /____\/ // / /  \ \ \  \ \___\/ // / /_______\/ / /_________\/ / /_       __\ \_\/\__\/_/___\    
         \/_/ \/_________/ \/_/    \_\/   \/_____/ \/__________/\/____________/\_\___\     /____/_/\/_________/    
                                                                                                                   
+"She may not look like much, but she's got it where it counts, kid. I've made a lot of special modifications myself."
+
 """
 
 @tangelo.restful
