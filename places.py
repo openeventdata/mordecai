@@ -222,10 +222,13 @@ def get():
 def post(*arg, **kwargs):
     params = json.loads(tangelo.request_body().read())
     text  = params['text']
-    country = requests.post(country_endpoint, data=json.dumps({"text":text}))
-    country_filter = [country.text]
-    
     locations = []
+    
+    try:
+        country = requests.post(country_endpoint, data=json.dumps({"text":text}))
+        country_filter = [country.text]
+    except ValueError:
+        return json.dumps(locations)
 
     out = utilities.talk_to_mitie(text)
     for i in out['entities']:
