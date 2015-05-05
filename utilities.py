@@ -1,17 +1,25 @@
 from __future__ import unicode_literals
 import sys, os
+import glob
 import pandas as pd
 from pyelasticsearch import ElasticSearch
 es = ElasticSearch(urls='http://localhost:9200', timeout=60, max_retries=2)
 import json
 import requests
 
-parent = os.path.dirname(os.path.realpath(__file__))
-sys.path.append('/home/admin1/MITIE/mitielib')
+# read in config file
+from ConfigParser import ConfigParser
+__location__ = os.path.realpath(
+            os.path.join(os.getcwd(), os.path.dirname(__file__)))
+config_file = glob.glob(os.path.join(__location__, 'config.ini'))
+parser = ConfigParser()
+parser.read(config_file)
+mitie_directory = parser.get('Locations', 'mitie_directory')
+mitie_ner_model = parser.get('Locations', 'mitie_ner_model')
 
+sys.path.append(mitie_directory)
 from mitie import *
-
-ner_model = named_entity_extractor('/home/admin1/MITIE/MITIE-models/english/ner_model.dat')
+ner_model = named_entity_extractor(mitie_ner_model)
 
 
 def talk_to_mitie(text):
