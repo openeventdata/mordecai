@@ -13,19 +13,24 @@ from bson.objectid import ObjectId
 import re
 from pymongo import MongoClient
 import tangelo
+import glob
 # import pandas as pd
 from pyelasticsearch import ElasticSearch
 import sys, os
 import utilities
 
-parent = os.path.dirname(os.path.realpath(__file__))
-sys.path.append('/home/admin1/MITIE/mitielib')
+# read in config file
+from ConfigParser import ConfigParser
+__location__ = os.path.realpath(
+            os.path.join(os.getcwd(), os.path.dirname(__file__)))
+config_file = glob.glob(os.path.join(__location__, 'config.ini'))
+parser = ConfigParser()
+parser.read(config_file)
+mitie_directory = parser.get('Locations', 'mitie_directory')
+country_endpoint = parser.get('Endpoints', 'country_endpoint')
 
+sys.path.append(mitie_directory)
 from mitie import *
-# Plan: load up several of these custom MITIE models and allow a parameter passed
-#       in the POST to pick which NER model to use.
-
-#ner = named_entity_extractor('/home/admin1/MITIE/MITIE-models/english/ner_model.dat')
 
 es = ElasticSearch(urls='http://localhost:9200', timeout=60, max_retries=2)
 
@@ -217,8 +222,7 @@ def get():
 def post(*arg, **kwargs):
     params = json.loads(tangelo.request_body().read())
     text  = params['text']
-
-    country = requests.post("http://192.168.50.236:8999/services/mordecai/country", data=json.dumps({"text":text}))
+    country = requests.post(country_endpoint, data=json.dumps({"text":text}))
     country_filter = [country.text]
     
     locations = []

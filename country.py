@@ -13,6 +13,7 @@ import re
 import tangelo
 import sys, os
 import utilities
+import glob
 from gensim import corpora, models, similarities, utils
 from gensim.models import Word2Vec
 from unidecode import unidecode
@@ -21,9 +22,18 @@ import pandas as pd
 from pyelasticsearch import ElasticSearch
 es = ElasticSearch(urls='http://localhost:9200', timeout=60, max_retries=2)
 
-parent = os.path.dirname(os.path.realpath(__file__))
-sys.path.append('/home/admin1/MITIE/mitielib')
+# read in config file
+from ConfigParser import ConfigParser
+__location__ = os.path.realpath(
+    os.path.join(os.getcwd(), os.path.dirname(__file__)))
+config_file = glob.glob(os.path.join(__location__, 'config.ini'))
+parser = ConfigParser()
+parser.read(config_file)
+mitie_directory = parser.get('Locations', 'mitie_directory')
+word2vec_model = parser.get('Locations', 'word2vec_model')
 
+#parent = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(mitie_directory)     #'/home/admin1/MITIE/mitielib')
 from mitie import *
 
 # Plan: load up several of these custom MITIE models and allow a parameter passed
@@ -104,7 +114,7 @@ stopword_country_names = {"Afghanistan":"AFG", "Åland Islands":"ALA", "Albania"
     "Vietnam":"VNM", "Wallis Futuna":"WLF",
     "Western_Sahara":"ESH", "Yemen":"YEM", "Zambia":"ZMB", "Zimbabwe":"ZWE"}
 
-prebuilt = Word2Vec.load_word2vec_format("/home/admin1/new_dashboard/services/mordecai/GoogleNews-vectors-negative300.bin.gz", binary=True)
+prebuilt = Word2Vec.load_word2vec_format(word2vec_model, binary=True)    #"/home/admin1/new_dashboard/services/mordecai/GoogleNews-vectors-negative300.bin.gz", binary=True)
 vocab_set = set(prebuilt.vocab.keys())
 
 
