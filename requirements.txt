@@ -1,0 +1,5 @@
+gensim==0.10.3
+nltk==3.0.0
+pyelasticsearch==1.2
+requests==2.5.3
+Unidecode==0.4.16
