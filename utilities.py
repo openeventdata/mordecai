@@ -80,7 +80,6 @@ def mitie_context(text):
     return {"entities" : out}
 
 
-
 def query_geonames_simple(placename):
     payload = {
     "query": {
