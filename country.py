@@ -134,27 +134,50 @@ def post(*arg, **kwargs):
     text  = params['text']
     out = utilities.talk_to_mitie(text)
     places = []
+    miscs = []
     for i in out['entities']:
         if i['tag'] == "LOCATION" or i['tag'] == "location":
             places.append(i['text'])
+        if i['tag'] == "MISC" or i['tag'] == "misc":
+            miscs.append(i['text'])
     
     loc_list = [re.sub(" ", "_", element) for element in places]
     locs = [x for x in loc_list if x in vocab_set]
     output_list = []
+    
+    if locs:
+        for i in stopword_country_names.keys():
+            country = unidecode(i)
+            country = country.split()
+            score = prebuilt.n_similarity(locs, country) #utils.tokenize(text)
+            out = [i, score]
+            output_list.append(out)
+        df = pd.DataFrame(output_list)
+        country_name = df.sort([1], ascending=False).head(1)
+        country_name = country_name.reset_index()[0].tolist()[0]
+        try:
+            return stopword_country_names[country_name]
+        except:
+            return []
+    else:
+        misc_list = [re.sub(" ", "_", element) for element in miscs]
+        misc = [x for x in misc_list if x in vocab_set]
+        print misc
+        output_list = []
 
-    for i in stopword_country_names.keys():
-        country = unidecode(i)
-        country = country.split()
-        score = prebuilt.n_similarity(locs, country) #utils.tokenize(text)
-        out = [i, score]
-        output_list.append(out)
-    df = pd.DataFrame(output_list)
-    country_name = df.sort([1], ascending=False).head(1)
-    country_name = country_name.reset_index()[0].tolist()[0]
-    try:
-        return stopword_country_names[country_name]
-    except:
-        return []
+        for i in stopword_country_names.keys():
+            country = unidecode(i)
+            country = country.split()
+            score = prebuilt.n_similarity(misc, country) #utils.tokenize(text)
+            out = [i, score]
+            output_list.append(out)
+        df = pd.DataFrame(output_list)
+        country_name = df.sort([1], ascending=False).head(1)
+        country_name = country_name.reset_index()[0].tolist()[0]
+        try:
+            return stopword_country_names[country_name]    
+        except: 
+            return []
     #return json.dumps(bothn)
     
 

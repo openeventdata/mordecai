@@ -50,6 +50,36 @@ def talk_to_mitie(text):
     htmlu = unicode(html.decode("utf-8"))
     return {"entities" : out, "html" : htmlu}
 
+
+def mitie_context(text):
+    # Function that accepts text to MITIE and returns entities (and +/- 3 words of context)
+    text = text.encode("utf-8")
+    tokens = tokenize(text)
+    entities = ner_model.extract_entities(tokens) # eventually, handle different NER models.
+    out = []
+    for e in entities:
+        range = e[0]
+        tag = e[1]
+        score = e[2]
+        entity_text = str(" ").join(tokens[i] for i in range)
+        beg_token = min(range) 
+        end_token = max(range)
+        
+        context = []
+        for i in [3, 2, 1]:
+            try:
+                context.append(tokens[beg_token - i])
+            except:
+                pass
+            try:
+                context.append(tokens[end_token + i])
+            except:
+                pass
+
+        out.append({u'tag' : unicode(tag), u'text' : entity_text, u'score':score, u'context':context})
+    return {"entities" : out}
+
+
 def query_geonames_simple(placename):
     payload = {
     "query": {
@@ -69,7 +99,8 @@ def query_geonames(placename, country_filter):
         "filtered": {
             "query": {
                 "query_string": {
-                    "query": placename
+                    "query": placename,
+                    "fields": ["asciiname^5", "alternativenames"]
                 }
             },
                 "filter": {
@@ -84,6 +115,36 @@ def query_geonames(placename, country_filter):
     out = requests.post("http://localhost:9200/geonames/_search?pretty", data=json.dumps(payload))
     return out.json()
     # e.g.: query_geonames("Aleppo", ["IRQ", "SYR"])
+
+def query_geonames_featureclass(placename, country_filter, feature_class):
+    payload = {
+    "query": {
+        "filtered": {
+            "query": {
+                "query_string": {
+                    "query": placename,
+                    "fields": ["asciiname^5", "alternativenames"]
+                }
+            },
+                "filter": {
+                    "and" : [
+                        {
+                         "terms" : {
+                        "country_code3": country_filter
+                            }
+                        },{
+                         "terms" : {
+                        "feature_class": feature_class
+                        }
+                    }
+            ]
+            }
+        }
+    }
+}   
+    out = requests.post("http://localhost:9200/geonames/_search?pretty", data=json.dumps(payload))
+    return out.json()
+    # e.g.: query_geonames("Aleppo", ["IRQ", "SYR"], ["P"])
 
 
 

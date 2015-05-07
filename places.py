@@ -78,135 +78,44 @@ country_names = ["Afghanistan","Åland Islands","Albania","Algeria","American Sa
                  "Zambia","Zimbabwe", "Europe", "America", "Africa", "Asia", "North America", "South America",
                  "United Nations","UN"]
 
-def pick_best_result(results, term):
-# Given a search term and the elasticsearch/geonames result from that search, return the best lat, lon, searchterm, place name
-    loc = []
-    try:
-        results = results['hits']['hits']
-    except:
-        return []
-    if len(results) < 1:
-    # end if there are no results
-        return []
-    # This is a big chunk of conditional logic to favor different results depending on what terms are in the 
-    #  original term. This is all obviously Syria and Iraq specific.
+P_list = ("city", "town", "village", "settlement", "capital", "cities", "villages", "towns", "neighborhood", "neighborhoods")
+A_list = ("governorate", "province", "muhafazat")
+# also need to get these from the term itself, not just the context
 
-# Governorate/Province Search
-    elif re.search("Governorate|Province|Wilayah", term):
-        # look for top-level ADM1 code
-        for r in results:
-            if r['_source']['feature_code'] == 'ADM1':
-                coords = r['_source']['coordinates'].split(",")
-                loc = [float(coords[0]), float(coords[1]), term, r['_source']['asciiname'], r['_source']['feature_class'], r['_source']['country_code3']]
-                if loc:
-                    return loc
-        # Failing that, take an area
-        if loc == []:
-            for r in results:
-                if r['_source']['feature_class'] == 'A':
-                    coords = r['_source']['coordinates'].split(",")
-                    loc = [float(coords[0]), float(coords[1]), term, r['_source']['asciiname'], r['_source']['feature_class'], r['_source']['country_code3']]
-                    if loc:
-                        return loc
-        # Failing that, take an inhabited place
-        if loc == []:
-            for r in results:
-                if r['_source']['feature_class'] == 'P':
-                    coords = r['_source']['coordinates'].split(",")
-                    loc = [float(coords[0]), float(coords[1]), term, r['_source']['asciiname'], r['_source']['feature_class'], r['_source']['country_code3']]
-                    if loc:
-                        return loc
-        # last resort, just take the first result.
-        if loc == []:
-            coords = results[0]['_source']['coordinates'].split(",")
-            loc = [float(coords[0]), float(coords[1]), term, results[0]['_source']['asciiname'], results[0]['_source']['feature_class'], results[0]['_source']['country_code3']]
-            return loc
-# District search
-    elif re.search("District", term):
-         # take places that are areas
-        ## define the default up here at the top?
-        for r in results:
-            if r['_source']['feature_class'] == 'A':
-                coords = r['_source']['coordinates'].split(",")
-                loc = [float(coords[0]), float(coords[1]), term, r['_source']['asciiname'], r['_source']['feature_class'], r['_source']['country_code3']]
-                if loc:
-                    return loc
-        # Failing that, take an inhabited place
-        if loc == []:
-            for r in results:
-                if r['_source']['feature_class'] == 'P':
-                    coords = r['_source']['coordinates'].split(",")
-                    loc = [float(coords[0]), float(coords[1]), term, r['_source']['asciiname'], r['_source']['feature_class'], r['_source']['country_code3']]
-                    if loc:
-                        return loc
-        # last resort, just take the first place result.
-        if loc == []:
-            coords = results[0]['_source']['coordinates'].split(",")
-            loc = [float(coords[0]), float(coords[1]), term, results[0]['_source']['asciiname'], results[0]['_source']['feature_class'], results[0]['_source']['country_code3']]
-            return loc
-# Subdistrict search    
-    elif re.search("Subdistrict", term):
-         # take places that are areas
-        ## define the default up here at the top?
-        for r in results:
-            if r['_source']['feature_class'] == 'P':
-                coords = r['_source']['coordinates'].split(",")
-                loc = [float(coords[0]), float(coords[1]), term, r['_source']['asciiname'], r['_source']['feature_class'], r['_source']['country_code3']]
-                if loc:
-                    return loc
-        # Failing that, take an inhabited place
-        if loc == []:
-            for r in results:
-                if r['_source']['feature_class'] == 'P':
-                    coords = r['_source']['coordinates'].split(",")
-                    loc = [float(coords[0]), float(coords[1]), term, r['_source']['asciiname'], r['_source']['feature_class'], r['_source']['country_code3']]
-                    if loc:
-                        return loc
-        # last resort, just take the first result.
-        if loc == []:
-            coords = results[0]['_source']['coordinates'].split(",")
-            loc = [float(coords[0]), float(coords[1]), term, results[0]['_source']['asciiname'], results[0]['_source']['feature_class'], results[0]['_source']['country_code3']]
-            return loc
-# Airport search    
-    elif re.search("Airport", term):
-        for r in results:
-            if r['_source']['feature_class'] == 'S':
-                coords = r['_source']['coordinates'].split(",")
-                loc = [float(coords[0]), float(coords[1]), term, r['_source']['asciiname'], r['_source']['feature_class'], r['_source']['country_code3']]
-                if loc:
-                    return loc
-        # Failing that, take an inhabited place
-        if loc == []:
-            for r in results:
-                if r['_source']['feature_class'] == 'P':
-                    coords = r['_source']['coordinates'].split(",")
-                    loc = [float(coords[0]), float(coords[1]), term, r['_source']['asciiname'], r['_source']['feature_class'], r['_source']['country_code3']]
-                    if loc:
-                        return loc
-        if loc == []:
-            coords = results[0]['_source']['coordinates'].split(",")
-            loc = [float(coords[0]), float(coords[1]), term, results[0]['_source']['asciiname'], results[0]['_source']['feature_class'], results[0]['_source']['country_code3']]
-            return loc
+def check_names(results, term):
+    # Is there an exact match?
+    new_results = []
+    for r in results:
+        if r['_source']['name'].lower() == term.lower():
+            return r
 
-# final condition: if it doesn't have any special terms, just take the first result. 
-# Not sure whether this should pick a city instead. Example: "Aleppo" should go to Aleppo the city. 
-# But switching makes Damascus resolve to the wrong place, since the city of Damascus doesn't make it into the top 10 for some reason.
-# But definitely don't take bodies of water
+def extract_feature_class(results, term, context):
+    context = set([x.lower() for x in context])
+    
+    if context.intersection(P_list):
+        return ['P']
+    if context.intersection(A_list):
+        return ['A']
     else:
-        for r in results:
-            if r['_source']['feature_code'] == 'PPLA':
-                coords = r['_source']['coordinates'].split(",")
-                loc = [float(coords[0]), float(coords[1]), term, r['_source']['asciiname'], r['_source']['feature_class'], r['_source']['country_code3']]
-                if loc:
-                    return loc
-        if loc == []:
-            coords = results[0]['_source']['coordinates'].split(",")
-            loc = [float(coords[0]), float(coords[1]), term, results[0]['_source']['asciiname'], results[0]['_source']['feature_class'], results[0]['_source']['country_code3']]
-            return loc
+        return ['A', 'P', 'S']
+    
+def pick_best_result2(results, term, context):
+    results = results['hits']['hits']
+    context = set([x.lower() for x in context])
+    place = check_names(results, term) 
+    if not place:
+        print "No nothing"
+        try:
+            place = results[0]
+        except IndexError:
+            return []
+    coords = place['_source']['coordinates'].split(",")
+    loc = [float(coords[0]), float(coords[1]), term, place['_source']['asciiname'], place['_source']['feature_class'], place['_source']['country_code3']]
+    return loc
+   
 
 
 place_cache = {}
-
 
 @tangelo.restful
 def get():
@@ -222,32 +131,43 @@ def get():
 def post(*arg, **kwargs):
     params = json.loads(tangelo.request_body().read())
     text  = params['text']
-    country = requests.post(country_endpoint, data=json.dumps({"text":text}))
-    country_filter = [country.text]
-    
     locations = []
-
-    out = utilities.talk_to_mitie(text)
-    for i in out['entities']:
-         if i['text'] in country_names:
+    try:
+       country = requests.post(country_endpoint, data=json.dumps({"text":text}))
+       country_filter = [country.text]
+       print country_filter
+    except ValueError:
+        return json.dumps(locations)
+ 
+    out = utilities.mitie_context(text)
+    
+    for i in out['entities']:        
+        if i['text'] in country_names:
              print " (Country/blacklist. Skipping...)"
-         elif i['tag'] == "LOCATION" or i['tag'] == "Location":
+        elif i['tag'] == "LOCATION" or i['tag'] == "Location":
+            print i
             try:
                 searchterm = re.sub(r"Governorate|District|Subdistrict|Airport", "", i['text']).strip() #put this in query_geonames?
                 searchterm = re.sub("Dar 'a", "Dar'a", searchterm)
+                feature_class = extract_feature_class(searchterm, i['text'], i['context'])
+                cache_term = '___'.join([searchterm, ''.join(feature_class)])
+                #print cache_term
                 try:
-                    t = place_cache[searchterm]
-                except:
-                    t = utilities.query_geonames(searchterm, country_filter)
-                    place_cache[searchterm] = t
-                loc = pick_best_result(t, i['text'])
+                    t = place_cache[cache_term]
+                except KeyError:
+                    t = utilities.query_geonames_featureclass(searchterm, country_filter, feature_class)
+                    place_cache[cache_term] = t
+               # for n in t['hits']['hits']:
+               #     print n['_source'][u'name']
+                #print extract_feature_class(t, i['text'], i['context'])
+                loc = pick_best_result2(t, i['text'], i['context'])
                 # loc is a nice format for debugging and looks like [35.13179, 36.75783, 'searchterm', u'matchname', u'feature_class', u'country_code3']: 
-                formatted_loc = {"lat":loc[0], "lon":loc[1], "seachterm":loc[2], "placename":loc[3], "countrycode":loc[5]}
-                locations.append(formatted_loc)
-            except:
-                pass
-
-    print "Place cache is ",
-    print len(place_cache)
+                if loc:
+                    formatted_loc = {"lat":loc[0], "lon":loc[1], "searchterm":loc[2], "placename":loc[3], "countrycode":loc[5]}
+                    locations.append(formatted_loc)
+            except Exception as e:
+                print e 
+    #print "Place cache is ",
+    #print len(place_cache)
     return json.dumps(locations)
 
