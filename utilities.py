@@ -55,7 +55,7 @@ def mitie_context(text):
     # Function that accepts text to MITIE and returns entities (and +/- 3 words of context)
     text = text.encode("utf-8")
     tokens = tokenize(text)
-    entities = ner.extract_entities(tokens) # eventually, handle different NER models.
+    entities = ner_model.extract_entities(tokens) # eventually, handle different NER models.
     out = []
     for e in entities:
         range = e[0]
@@ -100,7 +100,8 @@ def query_geonames(placename, country_filter):
         "filtered": {
             "query": {
                 "query_string": {
-                    "query": placename
+                    "query": placename,
+                    "fields": ["asciiname^5", "alternativenames"]
                 }
             },
                 "filter": {
@@ -115,6 +116,36 @@ def query_geonames(placename, country_filter):
     out = requests.post("http://localhost:9200/geonames/_search?pretty", data=json.dumps(payload))
     return out.json()
     # e.g.: query_geonames("Aleppo", ["IRQ", "SYR"])
+
+def query_geonames_featureclass(placename, country_filter, feature_class):
+    payload = {
+    "query": {
+        "filtered": {
+            "query": {
+                "query_string": {
+                    "query": placename,
+                    "fields": ["asciiname^5", "alternativenames"]
+                }
+            },
+                "filter": {
+                    "and" : [
+                        {
+                         "terms" : {
+                        "country_code3": country_filter
+                            }
+                        },{
+                         "terms" : {
+                        "feature_class": feature_class
+                        }
+                    }
+            ]
+            }
+        }
+    }
+}   
+    out = requests.post("http://localhost:9200/geonames/_search?pretty", data=json.dumps(payload))
+    return out.json()
+    # e.g.: query_geonames("Aleppo", ["IRQ", "SYR"], ["P"])
 
 
 
