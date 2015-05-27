@@ -4,7 +4,7 @@
 #
 # osc.py is a full-pipeline version optimized for our OSC stories
 #
-# Example: curl -XPOST -H "Content-Type: application/json"  --data '{"text":"On 12 August, the Independent Shafaq News Agency cited medical and security sources saying that fierce clashes broke out today in Tikrit, between the popular mobilization forces and elements of the terrorist DAISH. The sources added that the clashes resulted in the killing of 10 members of the popular mobilization and dozens from DAISH."}' 'http://192.168.50.236:8999/services/mordecai/osc' 
+# Example: curl -XPOST -H "Content-Type: application/json"  --data '{"text":"On 12 August, the BBC cited medical and security sources saying that fierce clashes broke out today in Tikrit, between the popular mobilization forces and elements of the terrorist DAISH. The sources added that the clashes resulted in the killing of 10 members of the popular mobilization and dozens from DAISH."}' 'http://192.168.50.236:8999/services/mordecai/osc' 
 
 from __future__ import unicode_literals
 import json
@@ -32,14 +32,8 @@ parser.read(config_file)
 mitie_directory = parser.get('Locations', 'mitie_directory')
 word2vec_model = parser.get('Locations', 'word2vec_model')
 
-#parent = os.path.dirname(os.path.realpath(__file__))
-sys.path.append(mitie_directory)     #'/home/admin1/MITIE/mitielib')
+sys.path.append(mitie_directory) 
 from mitie import *
-
-# Plan: load up several of these custom MITIE models and allow a parameter passed
-#       in the POST to pick which NER model to use.
-
-#ner = named_entity_extractor('/home/admin1/MITIE/MITIE-models/english/ner_model.dat')
 
 stopword_country_names = {"Afghanistan":"AFG", "Åland Islands":"ALA", "Albania":"ALB", "Algeria":"DZA",
     "American Samoa":"ASM", "Andorra":"AND", "Angola":"AGO", "Anguilla":"AIA",
@@ -114,19 +108,19 @@ stopword_country_names = {"Afghanistan":"AFG", "Åland Islands":"ALA", "Albania"
     "Vietnam":"VNM", "Wallis Futuna":"WLF",
     "Western_Sahara":"ESH", "Yemen":"YEM", "Zambia":"ZMB", "Zimbabwe":"ZWE"}
 
-prebuilt = Word2Vec.load_word2vec_format(word2vec_model, binary=True)    #"/home/admin1/new_dashboard/services/mordecai/GoogleNews-vectors-negative300.bin.gz", binary=True)
+prebuilt = Word2Vec.load_word2vec_format(word2vec_model, binary=True) 
 vocab_set = set(prebuilt.vocab.keys())
 
 
 @tangelo.restful
 def get():
     return """
-    This service expects a POST in the form '{"text":"On 12 August, the BBC reported that..."}'
-    It will return a list of ISO 3 character country codes for the country or countries it thinks the 
-    text is about.
-
-    It uses gensim!!!
-    """
+This service expects a POST in the form '{"text":"On 12 August, the BBC
+reported that..."}' It will return a list of ISO 3 character country codes for
+the country or countries it thinks the text is about. It determines the country
+focus by comparing the word2vec vectors for the places mentioned in the text
+with the vector representation of each country in the world, picking the
+closest."""
 
 @tangelo.restful
 def post(*arg, **kwargs):

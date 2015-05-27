@@ -120,11 +120,11 @@ place_cache = {}
 @tangelo.restful
 def get():
     return """
-    This service expects a POST in the form '{"text":"On 12 August, the BBC reported that..."}'
+This service expects a POST in the form '{"text":"On 12 August, the BBC reported that..."}'
     
-    It will return the places mentioned in the text along with their latitudes and longitudes in the form: 
-        {"lat":34.567, "lon":12.345, "seachterm":"Baghdad", "placename":"Baghdad", "countrycode":"IRQ"}
-    """
+It will return the places mentioned in the text along with their latitudes and longitudes in the form: 
+{"lat":34.567, "lon":12.345, "seachterm":"Baghdad", "placename":"Baghdad", "countrycode":"IRQ"}
+"""
 
 
 @tangelo.restful

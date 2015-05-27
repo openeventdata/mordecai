@@ -29,13 +29,13 @@ Endpoints
 
     In: text
 
-    Out: list of country codes for countries mentioned in text (used as input to later searches).
+    Out: An ISO country code that best matches the country focus of the text (used as input to later searches). In the future, this will be a list of country codes.
 
 2. `/places`
 
     In: text, list of country codes
 
-    Out: list of dictionaries of placenames and lat/lon in text
+    Out: list of dictionaries of placenames and lat/lon in text. The keys are "lat", "lon", "placename", "searchterm", and "countrycode". 
 
 3. Not built yet: `/locate`
 
@@ -56,3 +56,14 @@ Example usage
 
 Returns:
 `[{"lat": 34.61581, "placename": "Tikrit", "seachterm": "Tikrit", "lon": 43.67861, "countrycode": "IRQ"}, {"lat": 34.61581, "placename": "Tikrit", "seachterm": "Tikrit", "lon": 43.67861, "countrycode": "IRQ"}, {"lat": 33.32475, "placename": "Baghdad", "seachterm": "Baghdad", "lon": 44.42129, "countrycode": "IRQ"}]`
+
+Customization
+------------
+
+Mordecai is meant to be easy to customize. There are a few ways to do this.
+
+1. Change the MITIE named entity recognition model. This is a matter of changing one line in the configuration file, assuming that the custom trained MITIE model returns entities tagged as "LOCATION".
+
+2. Custom place-picking logic. See the `/osc` for an example. Prior knowledge about the place text is about and the vocabulary used in the text to describe place times can be hard coded into a special endpoint for a particular corpus.
+
+3. *[Not yet implemented]* If a corpus is known to be about a specific country, that country can be passed to `places` to limit the search to places in that country.
