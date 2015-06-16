@@ -14,15 +14,16 @@ import glob
 import json
 import tangelo
 import utilities
+from mitie import *
 from gensim import matutils
-from gensim.models import Word2Vec
 from unidecode import unidecode
-
+from gensim.models import Word2Vec
+from ConfigParser import ConfigParser
 from pyelasticsearch import ElasticSearch
+
 es = ElasticSearch(urls='http://localhost:9200', timeout=60, max_retries=2)
 
 # read in config file
-from ConfigParser import ConfigParser
 __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
 config_file = glob.glob(os.path.join(__location__, 'config.ini'))
@@ -32,7 +33,6 @@ mitie_directory = parser.get('Locations', 'mitie_directory')
 word2vec_model = parser.get('Locations', 'word2vec_model')
 
 sys.path.append(mitie_directory)
-from mitie import *
 
 stopword_country_names = {"Afghanistan":"AFG", "Åland Islands":"ALA", "Albania":"ALB", "Algeria":"DZA",
     "American Samoa":"ASM", "Andorra":"AND", "Angola":"AGO", "Anguilla":"AIA",
@@ -195,4 +195,3 @@ def post(*arg, **kwargs):
 #    for i in out['entities']:
 #        if i['tag'] == "LOCATION" or i['tag'] == "location":
 #            print i['text']
-#
