@@ -12,17 +12,19 @@ import os
 import sys
 import glob
 import json
+import numpy
 import tangelo
 import utilities
+from mitie import *
 from gensim import matutils
-from gensim.models import Word2Vec
 from unidecode import unidecode
-
+from gensim.models import Word2Vec
+from ConfigParser import ConfigParser
 from pyelasticsearch import ElasticSearch
+
 es = ElasticSearch(urls='http://localhost:9200', timeout=60, max_retries=2)
 
 # read in config file
-from ConfigParser import ConfigParser
 __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
 config_file = glob.glob(os.path.join(__location__, 'config.ini'))
@@ -32,7 +34,6 @@ mitie_directory = parser.get('Locations', 'mitie_directory')
 word2vec_model = parser.get('Locations', 'word2vec_model')
 
 sys.path.append(mitie_directory)
-from mitie import *
 
 stopword_country_names = {"Afghanistan":"AFG", "Åland Islands":"ALA", "Albania":"ALB", "Algeria":"DZA",
     "American Samoa":"ASM", "Andorra":"AND", "Angola":"AGO", "Anguilla":"AIA",
@@ -113,7 +114,7 @@ vocab_set = set(prebuilt.vocab.keys())
 countries = stopword_country_names.keys()
 
 idx_country_mapping = {}
-index = numpy.empty(shape=(len(countries), 300), dtype=dtype)
+index = numpy.empty(shape=(len(countries), 300), dtype='float64')
 
 for idx, country in enumerate(countries):
     country = unidecode(country)
@@ -122,7 +123,10 @@ for idx, country in enumerate(countries):
     except KeyError:
         pass
     index[idx] = vector
-    idx_country_mapping[idx] = stopword_country_names[country]
+    try:
+        idx_country_mapping[idx] = stopword_country_names[country]
+    except KeyError:
+        pass
 
 
 @tangelo.restful
@@ -195,4 +199,3 @@ def post(*arg, **kwargs):
 #    for i in out['entities']:
 #        if i['tag'] == "LOCATION" or i['tag'] == "location":
 #            print i['text']
-#
