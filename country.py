@@ -12,6 +12,7 @@ import os
 import sys
 import glob
 import json
+import numpy
 import tangelo
 import utilities
 from mitie import *
@@ -113,7 +114,7 @@ vocab_set = set(prebuilt.vocab.keys())
 countries = stopword_country_names.keys()
 
 idx_country_mapping = {}
-index = numpy.empty(shape=(len(countries), 300), dtype=dtype)
+index = numpy.empty(shape=(len(countries), 300), dtype='float64')
 
 for idx, country in enumerate(countries):
     country = unidecode(country)
@@ -122,7 +123,10 @@ for idx, country in enumerate(countries):
     except KeyError:
         pass
     index[idx] = vector
-    idx_country_mapping[idx] = stopword_country_names[country]
+    try:
+        idx_country_mapping[idx] = stopword_country_names[country]
+    except KeyError:
+        pass
 
 
 @tangelo.restful
