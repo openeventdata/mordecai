@@ -19,5 +19,5 @@ output = """
 
 
 class EasterEgg(Resource):
-    def get():
+    def get(self):
         return output

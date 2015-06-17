@@ -4,19 +4,17 @@ from tornado.ioloop import IOLoop
 from tornado.wsgi import WSGIContainer
 from tornado.httpserver import HTTPServer
 #from resources.osc import OscAPI
-#from resources.locate import EasterEgg
-#from resources.places import PlacesAPI
+from resources.places import PlacesAPI
 from resources.country import CountryAPI
-#from resources.easter_egg import LocateAPI
+from resources.easter_egg import EasterEgg
 
 app = Flask(__name__)
 api = Api(app)
 
 #api.add_resource(OscAPI, '/osc')
-#api.add_resource(PlacesAPI, '/places')
+api.add_resource(PlacesAPI, '/places')
 api.add_resource(CountryAPI, '/country')
-#api.add_resource(LocateAPI, '/locate')
-#api.add_resource(EasterEgg, '/easter_egg')
+api.add_resource(EasterEgg, '/easter_egg')
 
 
 if __name__ == '__main__':

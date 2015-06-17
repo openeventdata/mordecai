@@ -13,8 +13,8 @@ import glob
 import json
 import utilities
 from mitie import *
+from country import CountryAPI
 from ConfigParser import ConfigParser
-from country.CountryAPI import process
 from flask import jsonify, make_response
 from flask.ext.httpauth import HTTPBasicAuth
 from flask.ext.restful import Resource, reqparse
@@ -39,21 +39,10 @@ def unauthorized():
     # default auth dialog
     return make_response(jsonify({'message': 'Unauthorized access'}), 403)
 
-
-@app.errorhandler(400)
-def bad_request(error):
-    return make_response(jsonify({'error': 'Bad request'}), 400)
-
-
-@app.errorhandler(404)
-def not_found(error):
-    return make_response(jsonify({'error': 'Not found'}), 404)
-
-
 # read in config file
 __location__ = os.path.realpath(os.path.join(os.getcwd(),
                                              os.path.dirname(__file__)))
-config_file = glob.glob(os.path.join('../' + __location__, 'config.ini'))
+config_file = glob.glob(os.path.join(__location__, '../config.ini'))
 parser = ConfigParser()
 parser.read(config_file)
 mitie_directory = parser.get('Locations', 'mitie_directory')
@@ -166,7 +155,7 @@ class PlacesAPI(Resource):
         text = args['text']
         locations = []
         try:
-            country_filter = process(text)
+            country_filter = CountryAPI().process(text)
             print country_filter
         except ValueError:
             return json.dumps(locations)
