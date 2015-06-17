@@ -11,6 +11,7 @@ import re
 import os
 import sys
 import glob
+import json
 import numpy
 import utilities
 from mitie import *
@@ -43,30 +44,91 @@ def unauthorized():
     return make_response(jsonify({'message': 'Unauthorized access'}), 403)
 
 
-@app.errorhandler(400)
-def bad_request(error):
-    return make_response(jsonify({'error': 'Bad request'}), 400)
-
-
-@app.errorhandler(404)
-def not_found(error):
-    return make_response(jsonify({'error': 'Not found'}), 404)
-
-
 # read in config file
 __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
 config_file = glob.glob(os.path.join('../' + __location__, 'config.ini'))
 parser = ConfigParser()
-parser.read(config_file)
-mitie_directory = parser.get('Locations', 'mitie_directory')
-word2vec_model = parser.get('Locations', 'word2vec_model')
+word2vec_model = os.path.join(__location__,
+                              'GoogleNews-vectors-negative300.bin')
 
-sys.path.append(mitie_directory)
+#countries_file = glob.glob(os.path.join(__location__, 'countries.json'))[0]
+#with open(countries_file, 'r') as f:
+#    stopword_country_names = json.loads(f.read())
 
-with open('./countries.json', 'r') as f:
-    stopword_country_names = json.load(f)
 
+stopword_country_names = {"Afghanistan":"AFG", "Åland Islands":"ALA", "Albania":"ALB", "Algeria":"DZA",
+    "American Samoa":"ASM", "Andorra":"AND", "Angola":"AGO", "Anguilla":"AIA",
+    "Antarctica":"ATA", "Antigua Barbuda":"ATG", "Argentina":"ARG",
+    "Armenia":"ARM", "Aruba":"ABW", "Ascension_Island":"NA", "Australia":"AUS",
+    "Austria":"AUT", "Azerbaijan":"AZE", "Bahamas":"BHS", "Bahrain":"BHR",
+    "Bangladesh":"BGD", "Barbados":"BRB", "Belarus":"BLR", "Belgium":"BEL",
+    "Belize":"BLZ", "Benin":"BEN", "Bermuda":"BMU", "Bhutan":"BTN",
+    "Bolivia":"BOL", "Bosnia_Herzegovina":"BIH",
+    "Botswana":"BWA", "Bouvet Island":"BVT", "Brazil":"BRA",
+    "Britain":"GBR", "Great_Britain":"GBR",
+    "British Virgin Islands":"VGB", "Brunei":"BRN", "Bulgaria":"BGR", "Burkina_Faso":"BFA",
+    "Burundi":"BDI", "Cambodia":"KHM", "Cameroon":"CMR",
+    "Canada":"CAN","Cape Verde":"CPV", "Cayman_Islands":"CYM",
+    "Central African Republic":"CAF", "Chad":"TCD", "Chile":"CHL", "China":"CHN",
+    "Cocos_Islands":"CCK", "Colombia":"COL",
+    "Comoros":"COM", "Congo Brazzaville":"COG", "Congo Kinshasa":"COD",
+    "Congo":"COG", "Cook_Islands":"COK",
+    "Costa_Rica":"CRI", "Cote Ivoire":"CIV", "Ivory_Coast":"CIV","Croatia":"HRV", "Cuba":"CUB",
+    "Curaçao":"CUW", "Cyprus":"CYP", "Czech_Republic":"CZE", "Denmark":"DNK",
+    "Djibouti":"DJI", "Dominica":"DMA", "Dominican_Republic":"DOM",
+    "Ecuador":"ECU", "Egypt":"EGY", "El_Salvador":"SLV",
+    "Equatorial_Guinea":"GNQ", "Eritrea":"ERI", "Estonia":"EST", "Ethiopia":"ETH",
+    "Falkland_Islands":"FLK", "Faroe_Islands":"FRO",
+    "Fiji":"FJI", "Finland":"FIN", "France":"FRA", "French_Guiana":"GUF",
+    "French_Polynesia":"PYF","Gabon":"GAB",
+    "Gambia":"GMB", "Gaza":"PSE", "Georgia":"GEO", "Germany":"DEU", "Ghana":"GHA",
+    "Gibraltar":"GIB", "Greece":"GRC", "Greenland":"GRL", "Grenada":"GRD",
+    "Guadeloupe":"GLP", "Guam":"GUM", "Guatemala":"GTM", "Guernsey":"GGY",
+    "Guinea":"GIN", "Guinea_Bissau":"GNB", "Guyana":"GUY", "Haiti":"HTI","Honduras":"HND",
+    "Hong_Kong":"HKG",  "Hungary":"HUN", "Iceland":"ISL",
+    "India":"IND", "Indonesia":"IDN", "Iran":"IRN", "Iraq":"IRQ", "Ireland":"IRL",
+    "Israel":"ISR", "Italy":"ITA", "Jamaica":"JAM", "Japan":"JPN",
+    "Jordan":"JOR", "Kazakhstan":"KAZ", "Kenya":"KEN",
+    "Kiribati":"KIR", "Kuwait":"KWT", "Kyrgyzstan":"KGZ", "Laos":"LAO",
+    "Latvia":"LVA", "Lebanon":"LBN", "Lesotho":"LSO", "Liberia":"LBR",
+    "Libya":"LBY", "Liechtenstein":"LIE", "Lithuania":"LTU", "Luxembourg":"LUX",
+    "Macau":"MAC", "Macedonia":"MKD", "Madagascar":"MDG", "Malawi":"MWI",
+    "Malaysia":"MYS", "Maldives":"MDV", "Mali":"MLI", "Malta":"MLT", "Marshall_Islands":"MHL",
+    "Martinique":"MTQ", "Mauritania":"MRT", "Mauritius":"MUS",
+    "Mayotte":"MYT", "Mexico":"MEX", "Micronesia":"FSM", "Moldova":"MDA",
+    "Monaco":"MCO", "Mongolia":"MNG", "Montenegro":"MNE", "Montserrat":"MSR",
+    "Morocco":"MAR", "Mozambique":"MOZ", "Myanmar":"MMR", "Burma":"MMR", "Namibia":"NAM",
+    "Nauru":"NRU", "Nepal":"NPL", "Netherlands":"NLD", "Netherlands Antilles":"ANT",
+    "New Caledonia":"NCL", "New_Zealand":"NZL", "Nicaragua":"NIC",
+    "Niger":"NER", "Nigeria":"NGA", "Niue":"NIU", "North_Korea":"PRK",
+    "Northern Ireland":"IRL", "Northern Mariana Islands":"MNP",
+    "Norway":"NOR", "Oman":"OMN", "Pakistan":"PAK",
+    "Palau":"PLW", "Palestinian_Territories":"PSE", "Palestine":"PSE","Panama":"PAN", "Papua New Guinea":"PNG",
+    "Paraguay":"PRY", "Peru":"PER", "Philippines":"PHL", "Pitcairn_Islands":"PCN",
+    "Poland":"POL", "Portugal":"PRT", "Puerto_Rico":"PRI",
+    "Qatar":"QAT", "Réunion":"REU", "Romania":"ROU", "Russia":"RUS",
+    "Rwanda":"RWA", "Saint Barthélemy":"BLM", "Saint Helena":"SHN",
+    "Saint Kitts Nevis":"KNA", "Saint Lucia":"LCA",
+    "Saint Pierre Miquelon":"SPM", "Saint Vincent Grenadines":"VCT",
+    "Samoa":"WSM", "San_Marino":"SMR", "São Tomé Príncipe":"STP", "Saudi_Arabia":"SAU",
+    "Senegal":"SEN", "Serbia":"SRB",
+    "Seychelles":"SYC", "Sierra_Leone":"SLE", "Singapore":"SGP", "Sint Maarten":"SXM",
+    "Slovakia":"SVK", "Slovenia":"SVN", "Solomon_Islands":"SLB",
+    "Somalia":"SOM", "South_Africa":"ZAF",
+    "South_Korea":"KOR", "South Sudan":"SSD", "Spain":"ESP", "Sri_Lanka":"LKA", "Sudan":"SDN",
+    "Suriname":"SUR", "Svalbard Jan Mayen":"SJM",
+    "Swaziland":"SWZ", "Sweden":"SWE", "Switzerland":"CHE", "Syria":"SYR",
+    "Taiwan":"TWN", "Tajikistan":"TJK", "Tanzania":"TZA", "Thailand":"THA",
+    "Timor Leste":"TLS", "East_Timor":"TLS","Togo":"TGO", "Tokelau":"TKL", "Tonga":"TON", "Trinidad Tobago":"TTO",
+    "Tunisia":"TUN", "Turkey":"TUR",
+    "Turkmenistan":"TKM", "Turks Caicos Islands":"TCA", "Tuvalu":"TUV", "U.S. Minor Outlying Islands":"UMI",
+    "Virgin_Islands":"VIR", "Uganda":"UGA",
+    "Ukraine":"UKR", "United_Arab_Emirates":"ARE", "United_Kingdom":"GBR",
+    "UK":"GBR", "United_States":"USA", "USA":"USA", "America":"USA",
+    "Uruguay":"URY", "Uzbekistan":"UZB", "Vanuatu":"VUT", "Vatican":"VAT", "Venezuela":"VEN",
+    "Vietnam":"VNM", "Wallis Futuna":"WLF",
+    "Western_Sahara":"ESH", "Yemen":"YEM", "Zambia":"ZMB", "Zimbabwe":"ZWE"}
 
 prebuilt = Word2Vec.load_word2vec_format(word2vec_model, binary=True)
 vocab_set = set(prebuilt.vocab.keys())
