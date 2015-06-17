@@ -6,23 +6,21 @@
 
 
 from __future__ import unicode_literals
-import requests
-import json
-import requests
-from bson.objectid import ObjectId
+import os
 import re
-from pymongo import MongoClient
-import tangelo
+import sys
 import glob
-# import pandas as pd
-from pyelasticsearch import ElasticSearch
-import sys, os
+import json
+import tangelo
+import requests
 import utilities
+from mitie import *
+from ConfigParser import ConfigParser
+from pyelasticsearch import ElasticSearch
 
 # read in config file
-from ConfigParser import ConfigParser
-__location__ = os.path.realpath(
-            os.path.join(os.getcwd(), os.path.dirname(__file__)))
+__location__ = os.path.realpath(os.path.join(os.getcwd(),
+                                             os.path.dirname(__file__)))
 config_file = glob.glob(os.path.join(__location__, 'config.ini'))
 parser = ConfigParser()
 parser.read(config_file)
@@ -30,7 +28,6 @@ mitie_directory = parser.get('Locations', 'mitie_directory')
 country_endpoint = parser.get('Endpoints', 'country_endpoint')
 
 sys.path.append(mitie_directory)
-from mitie import *
 
 es = ElasticSearch(urls='http://localhost:9200', timeout=60, max_retries=2)
 
@@ -78,31 +75,34 @@ country_names = ["Afghanistan","Åland Islands","Albania","Algeria","American Sa
                  "Zambia","Zimbabwe", "Europe", "America", "Africa", "Asia", "North America", "South America",
                  "United Nations","UN"]
 
-P_list = ("city", "town", "village", "settlement", "capital", "cities", "villages", "towns", "neighborhood", "neighborhoods")
+P_list = ("city", "town", "village", "settlement", "capital", "cities",
+          "villages", "towns", "neighborhood", "neighborhoods")
 A_list = ("governorate", "province", "muhafazat")
 # also need to get these from the term itself, not just the context
 
+
 def check_names(results, term):
     # Is there an exact match?
-    new_results = []
     for r in results:
         if r['_source']['name'].lower() == term.lower():
             return r
 
+
 def extract_feature_class(results, term, context):
     context = set([x.lower() for x in context])
-    
+
     if context.intersection(P_list):
         return ['P']
     if context.intersection(A_list):
         return ['A']
     else:
         return ['A', 'P', 'S']
-    
+
+
 def pick_best_result2(results, term, context):
     results = results['hits']['hits']
     context = set([x.lower() for x in context])
-    place = check_names(results, term) 
+    place = check_names(results, term)
     if not place:
         print "No nothing"
         try:
@@ -110,19 +110,20 @@ def pick_best_result2(results, term, context):
         except IndexError:
             return []
     coords = place['_source']['coordinates'].split(",")
-    loc = [float(coords[0]), float(coords[1]), term, place['_source']['asciiname'], place['_source']['feature_class'], place['_source']['country_code3']]
+    loc = [float(coords[0]), float(coords[1]), term,
+           place['_source']['asciiname'], place['_source']['feature_class'],
+           place['_source']['country_code3']]
     return loc
-   
-
 
 place_cache = {}
+
 
 @tangelo.restful
 def get():
     return """
 This service expects a POST in the form '{"text":"On 12 August, the BBC reported that..."}'
-    
-It will return the places mentioned in the text along with their latitudes and longitudes in the form: 
+
+It will return the places mentioned in the text along with their latitudes and longitudes in the form:
 {"lat":34.567, "lon":12.345, "seachterm":"Baghdad", "placename":"Baghdad", "countrycode":"IRQ"}
 """
 
@@ -130,44 +131,51 @@ It will return the places mentioned in the text along with their latitudes and l
 @tangelo.restful
 def post(*arg, **kwargs):
     params = json.loads(tangelo.request_body().read())
-    text  = params['text']
+    text = params['text']
     locations = []
     try:
-       country = requests.post(country_endpoint, data=json.dumps({"text":text}))
-       country_filter = [country.text]
-       print country_filter
+        country = requests.post(country_endpoint,
+                                data=json.dumps({"text": text}))
+        country_filter = [country.text]
+        print country_filter
     except ValueError:
         return json.dumps(locations)
- 
+
     out = utilities.mitie_context(text)
-    
-    for i in out['entities']:        
+
+    for i in out['entities']:
         if i['text'] in country_names:
-             print " (Country/blacklist. Skipping...)"
+            print " (Country/blacklist. Skipping...)"
         elif i['tag'] == "LOCATION" or i['tag'] == "Location":
             print i
             try:
-                searchterm = re.sub(r"Governorate|District|Subdistrict|Airport", "", i['text']).strip() #put this in query_geonames?
+                # put this in query_geonames?
+                searchterm = re.sub(r"Governorate|District|Subdistrict|Airport",
+                                    "", i['text']).strip()
                 searchterm = re.sub("Dar 'a", "Dar'a", searchterm)
-                feature_class = extract_feature_class(searchterm, i['text'], i['context'])
+                feature_class = extract_feature_class(searchterm, i['text'],
+                                                      i['context'])
                 cache_term = '___'.join([searchterm, ''.join(feature_class)])
-                #print cache_term
+                # print cache_term
                 try:
                     t = place_cache[cache_term]
                 except KeyError:
-                    t = utilities.query_geonames_featureclass(searchterm, country_filter, feature_class)
+                    t = utilities.query_geonames_featureclass(searchterm,
+                                                              country_filter,
+                                                              feature_class)
                     place_cache[cache_term] = t
-               # for n in t['hits']['hits']:
-               #     print n['_source'][u'name']
-                #print extract_feature_class(t, i['text'], i['context'])
+                # for n in t['hits']['hits']:
+                #     print n['_source'][u'name']
+                # print extract_feature_class(t, i['text'], i['context'])
                 loc = pick_best_result2(t, i['text'], i['context'])
-                # loc is a nice format for debugging and looks like [35.13179, 36.75783, 'searchterm', u'matchname', u'feature_class', u'country_code3']: 
+                # loc is a nice format for debugging and looks like [35.13179, 36.75783, 'searchterm', u'matchname', u'feature_class', u'country_code3']:
                 if loc:
-                    formatted_loc = {"lat":loc[0], "lon":loc[1], "searchterm":loc[2], "placename":loc[3], "countrycode":loc[5]}
+                    formatted_loc = {"lat": loc[0], "lon": loc[1],
+                                     "searchterm": loc[2], "placename": loc[3],
+                                     "countrycode": loc[5]}
                     locations.append(formatted_loc)
             except Exception as e:
-                print e 
-    #print "Place cache is ",
-    #print len(place_cache)
+                print e
+    # print "Place cache is ",
+    # print len(place_cache)
     return json.dumps(locations)
-
