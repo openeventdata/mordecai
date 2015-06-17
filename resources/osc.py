@@ -11,9 +11,12 @@ import re
 import os
 import sys
 import json
-import tangelo
 import requests
 import utilities
+from flask.ext.httpauth import HTTPBasicAuth
+from flask import jsonify, make_response
+from flask.ext.restful import Resource, reqparse
+from flask.ext.restful.representations.json import output_json
 
 parent = os.path.dirname(os.path.realpath(__file__))
 sys.path.append('/home/admin1/MITIE/mitielib')
@@ -314,4 +317,4 @@ class OscAPI(Resource):
                 formatted_loc = {"lat": loc[0], "lon": loc[1],
                                  "seachterm": loc[2], "placename": loc[3],
                                  "countrycode": loc[5]}
-                return formatted_loc
+                return jsonify(formatted_loc)
