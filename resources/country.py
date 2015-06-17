@@ -18,8 +18,8 @@ from gensim import matutils
 from unidecode import unidecode
 from gensim.models import Word2Vec
 from ConfigParser import ConfigParser
-from flask.ext.httpauth import HTTPBasicAuth
 from flask import jsonify, make_response
+from flask.ext.httpauth import HTTPBasicAuth
 from flask.ext.restful import Resource, reqparse
 from flask.ext.restful.representations.json import output_json
 
@@ -106,6 +106,10 @@ class CountryAPI(Resource):
     def post(self):
         args = self.reqparse.parse_args()
         text = args['text']
+        output = self.process(text)
+        return output
+
+    def process(self, text):
         out = utilities.talk_to_mitie(text)
         places = []
         miscs = []
