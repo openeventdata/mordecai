@@ -93,9 +93,9 @@ class CountryAPI(Resource):
     def __init__(self):
         self.reqparse = reqparse.RequestParser()
         self.reqparse.add_argument('text', type=unicode, location='json')
-        super(HermesAPI, self).__init__()
+        super(CountryAPI, self).__init__()
 
-    def get():
+    def get(self):
         return """ This service expects a POST in the form '{"text":"On 12
     August, the BBC reported that..."}' It will return a list of ISO 3 character
     country codes for the country or countries it thinks the text is about. It
