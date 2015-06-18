@@ -1,6 +1,7 @@
 # coding=utf-8
-# Mordecai is our RESTful MITIE-geonames-elasticsearch service, built for use in a text-to-Mongo pipeline
-# It gets passed text and returns lat/lons and placenames.
+# Mordecai is our RESTful MITIE-geonames-elasticsearch service, built for use in
+# a text-to-Mongo pipeline It gets passed text and returns lat/lons and
+# placenames.
 #
 # osc.py is a full-pipeline version optimized for our OSC stories
 
@@ -102,7 +103,7 @@ A_list = ("governorate", "province", "muhafazat")
 def check_names(results, term):
     # Is there an exact match?
     for r in results:
-        if r['_source']['name'].lower() == term.lower():
+        if r['name'].lower() == term.lower():
             return r
 
 
@@ -127,10 +128,10 @@ def pick_best_result2(results, term, context):
             place = results[0]
         except IndexError:
             return []
-    coords = place['_source']['coordinates'].split(",")
+    coords = place['coordinates'].split(",")
     loc = [float(coords[0]), float(coords[1]), term,
-           place['_source']['asciiname'], place['_source']['feature_class'],
-           place['_source']['country_code3']]
+           place['asciiname'], place['feature_class'],
+           place['country_code3']]
     return loc
 
 place_cache = {}
@@ -144,10 +145,12 @@ class PlacesAPI(Resource):
 
     def get(self):
         return """
-    This service expects a POST in the form '{"text":"On 12 August, the BBC reported that..."}'
+    This service expects a POST in the form '{"text":"On 12 August, the BBC
+    reported that..."}'
 
-    It will return the places mentioned in the text along with their latitudes and longitudes in the form:
-    {"lat":34.567, "lon":12.345, "seachterm":"Baghdad", "placename":"Baghdad", "countrycode":"IRQ"}
+    It will return the places mentioned in the text along with their latitudes
+    and longitudes in the form: {"lat":34.567, "lon":12.345,
+    "seachterm":"Baghdad", "placename":"Baghdad", "countrycode":"IRQ"}
     """
 
     def post(self):
@@ -156,7 +159,6 @@ class PlacesAPI(Resource):
         locations = []
         try:
             country_filter = CountryAPI().process(text)
-            print country_filter
         except ValueError:
             return json.dumps(locations)
 
@@ -166,7 +168,6 @@ class PlacesAPI(Resource):
             if i['text'] in country_names:
                 print " (Country/blacklist. Skipping...)"
             elif i['tag'] == "LOCATION" or i['tag'] == "Location":
-                print i
                 try:
                     # put this in query_geonames?
                     searchterm = re.sub(r"Governorate|District|Subdistrict|Airport",
@@ -188,13 +189,17 @@ class PlacesAPI(Resource):
                     #     print n['_source'][u'name']
                     # print extract_feature_class(t, i['text'], i['context'])
                     loc = pick_best_result2(t, i['text'], i['context'])
-                    # loc is a nice format for debugging and looks like [35.13179, 36.75783, 'searchterm', u'matchname', u'feature_class', u'country_code3']:
+                    # loc is a nice format for debugging and looks like
+                    # [35.13179, 36.75783, 'searchterm', u'matchname',
+                    # u'feature_class', u'country_code3']:
                     if loc:
+                        print('\n\nIn the loc section of the thing...')
                         formatted_loc = {"lat": loc[0], "lon": loc[1],
                                          "searchterm": loc[2],
                                          "placename": loc[3],
                                          "countrycode": loc[5]}
+                        print('Formatted loc: {}'.format(formatted_loc))
                         locations.append(formatted_loc)
                 except Exception as e:
                     print e
-        return json.dumps(locations)
+        return locations
