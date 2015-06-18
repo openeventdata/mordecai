@@ -13,27 +13,49 @@ import sys
 import glob
 import json
 import numpy
-import tangelo
 import utilities
 from mitie import *
 from gensim import matutils
 from unidecode import unidecode
 from gensim.models import Word2Vec
 from ConfigParser import ConfigParser
-from pyelasticsearch import ElasticSearch
+from flask import jsonify, make_response
+from flask.ext.httpauth import HTTPBasicAuth
+from flask.ext.restful import Resource, reqparse
+from flask.ext.restful.representations.json import output_json
 
-es = ElasticSearch(urls='http://localhost:9200', timeout=60, max_retries=2)
+output_json.func_globals['settings'] = {'ensure_ascii': False,
+                                        'encoding': 'utf8'}
+
+auth = HTTPBasicAuth()
+
+
+@auth.get_password
+def get_password(username):
+    if username == 'user':
+        return 'text2features'
+    return None
+
+
+@auth.error_handler
+def unauthorized():
+    # return 403 instead of 401 to prevent browsers from displaying the
+    # default auth dialog
+    return make_response(jsonify({'message': 'Unauthorized access'}), 403)
+
 
 # read in config file
 __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
-config_file = glob.glob(os.path.join(__location__, 'config.ini'))
+config_file = glob.glob(os.path.join('../' + __location__, 'config.ini'))
 parser = ConfigParser()
-parser.read(config_file)
-mitie_directory = parser.get('Locations', 'mitie_directory')
-word2vec_model = parser.get('Locations', 'word2vec_model')
+word2vec_model = os.path.join(__location__,
+                              'GoogleNews-vectors-negative300.bin')
 
-sys.path.append(mitie_directory)
+#countries_file = glob.glob(os.path.join(__location__, 'countries.json'))[0]
+#with open(countries_file, 'r') as f:
+#    stopword_country_names = json.loads(f.read())
+
 
 stopword_country_names = {"Afghanistan":"AFG", "Åland Islands":"ALA", "Albania":"ALB", "Algeria":"DZA",
     "American Samoa":"ASM", "Andorra":"AND", "Angola":"AGO", "Anguilla":"AIA",
@@ -129,73 +151,59 @@ for idx, country in enumerate(countries):
         pass
 
 
-@tangelo.restful
-def get():
-    return """
-This service expects a POST in the form '{"text":"On 12 August, the BBC
-reported that..."}' It will return a list of ISO 3 character country codes for
-the country or countries it thinks the text is about. It determines the country
-focus by comparing the word2vec vectors for the places mentioned in the text
-with the vector representation of each country in the world, picking the
-closest."""
+class CountryAPI(Resource):
+    def __init__(self):
+        self.reqparse = reqparse.RequestParser()
+        self.reqparse.add_argument('text', type=unicode, location='json')
+        super(CountryAPI, self).__init__()
 
+    def get(self):
+        return """ This service expects a POST in the form '{"text":"On 12
+    August, the BBC reported that..."}' It will return a list of ISO 3 character
+    country codes for the country or countries it thinks the text is about. It
+    determines the country focus by comparing the word2vec vectors for the
+    places mentioned in the text with the vector representation of each country
+    in the world, picking the closest."""
 
-@tangelo.restful
-def post(*arg, **kwargs):
-    params = json.loads(tangelo.request_body().read())
-    text = params['text']
-    out = utilities.talk_to_mitie(text)
-    places = []
-    miscs = []
-    for i in out['entities']:
-        if i['tag'] == "LOCATION" or i['tag'] == "location":
-            places.append(i['text'])
-        if i['tag'] == "MISC" or i['tag'] == "misc":
-            miscs.append(i['text'])
+    def post(self):
+        args = self.reqparse.parse_args()
+        text = args['text']
+        output = self.process(text)
+        return output
 
-    loc_list = [re.sub(" ", "_", element) for element in places]
-    locs = [x for x in loc_list if x in vocab_set]
+    def process(self, text):
+        out = utilities.talk_to_mitie(text)
+        places = []
+        miscs = []
+        for i in out['entities']:
+            if i['tag'] == "LOCATION" or i['tag'] == "location":
+                places.append(i['text'])
+            if i['tag'] == "MISC" or i['tag'] == "misc":
+                miscs.append(i['text'])
 
-    if locs:
-        locs_word_vec = [prebuilt[word] for word in locs]
-        locs_vec = numpy.array(locs_word_vec)
-        weights = numpy.dot(index,
-                            matutils.unitvec(locs_vec.mean(axis=0)).T).T
-        ranks = weights.argsort()[::-1]
-        try:
-            return idx_country_mapping[ranks[0]]
-        except:
-            return []
-    else:
-        misc_list = [re.sub(" ", "_", element) for element in miscs]
-        misc = [x for x in misc_list if x in vocab_set]
+        loc_list = [re.sub(" ", "_", element) for element in places]
+        locs = [x for x in loc_list if x in vocab_set]
 
-        misc_word_vec = [prebuilt[word] for word in misc]
-        misc_vec = numpy.array(misc_word_vec)
-        weights = numpy.dot(index,
-                            matutils.unitvec(misc_vec.mean(axis=0)).T).T
-        ranks = weights.argsort()[::-1]
-        try:
-            return idx_country_mapping[ranks[0]]
-        except:
-            return []
+        if locs:
+            locs_word_vec = [prebuilt[word] for word in locs]
+            locs_vec = numpy.array(locs_word_vec)
+            weights = numpy.dot(index,
+                                matutils.unitvec(locs_vec.mean(axis=0)).T).T
+            ranks = weights.argsort()[::-1]
+            try:
+                return idx_country_mapping[ranks[0]]
+            except:
+                return []
+        else:
+            misc_list = [re.sub(" ", "_", element) for element in miscs]
+            misc = [x for x in misc_list if x in vocab_set]
 
-
-# future: add place for title here?
-#    bothn = []
-#
-#    for n in placenames.keys():
-#        t = re.search(n, text)
-#        if t:
-#            print "Match!!!!"
-#            bothn.append(placenames[n])
-#
-#
-#    if bothn == []:
-#        print "Using text_to_country"
-#    #    print utilities.text_to_country(text)
-#    out = utilities.talk_to_mitie(text)
-#    print "MITIE output:",
-#    for i in out['entities']:
-#        if i['tag'] == "LOCATION" or i['tag'] == "location":
-#            print i['text']
+            misc_word_vec = [prebuilt[word] for word in misc]
+            misc_vec = numpy.array(misc_word_vec)
+            weights = numpy.dot(index,
+                                matutils.unitvec(misc_vec.mean(axis=0)).T).T
+            ranks = weights.argsort()[::-1]
+            try:
+                return idx_country_mapping[ranks[0]]
+            except:
+                return []

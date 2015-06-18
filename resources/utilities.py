@@ -2,17 +2,17 @@ from __future__ import unicode_literals
 import os
 import sys
 import glob
-import json
-import requests
 import pandas as pd
 from mitie import *
+from elasticsearch_dsl import Search
 from ConfigParser import ConfigParser
-from pyelasticsearch import ElasticSearch
+from elasticsearch import Elasticsearch
+from elasticsearch_dsl.query import MultiMatch
 
 # read in config file
 __location__ = os.path.realpath(os.path.join(os.getcwd(),
                                              os.path.dirname(__file__)))
-config_file = glob.glob(os.path.join(__location__, 'config.ini'))
+config_file = glob.glob(os.path.join(__location__, '../config.ini'))
 parser = ConfigParser()
 parser.read(config_file)
 mitie_directory = parser.get('Locations', 'mitie_directory')
@@ -21,7 +21,8 @@ mitie_ner_model = parser.get('Locations', 'mitie_ner_model')
 sys.path.append(mitie_directory)
 ner_model = named_entity_extractor(mitie_ner_model)
 
-es = ElasticSearch(urls='http://localhost:9200', timeout=60, max_retries=2)
+CLIENT = Elasticsearch()
+S = Search(CLIENT)
 
 
 def talk_to_mitie(text):
@@ -47,7 +48,8 @@ def talk_to_mitie(text):
             for i in range:
                 if i != range[0]:
                     newt += str(' ') + tokens[i]
-        newt = str('<span class="mitie-') + tag + str('">') + newt + str('</span>')
+        newt = (str('<span class="mitie-') + tag + str('">') + newt +
+                str('</span>'))
         tokens = tokens[:range[0]] + [newt] + tokens[(range[-1] + 1):]
     del tokens[-1]
     html = str(' ').join(tokens)
@@ -87,75 +89,40 @@ def mitie_context(text):
     return {"entities": out}
 
 
-def query_geonames_simple(placename):
-    payload = {
-    "query": {
-        "filtered": {
-            "query": {
-                "query_string": {
-                    "query": placename
-                }
-            }
-        }
-    }
-    }
-
-
 def query_geonames(placename, country_filter):
-    payload = {
-    "query": {
-        "filtered": {
-            "query": {
-                "query_string": {
-                    "query": placename,
-                    "fields": ["asciiname^5", "alternativenames"]
-                }
-            },
-                "filter": {
-                     "terms" : {
-                        "country_code3": country_filter
-                        }
-                    }
-                }
-            }
-        }
-
-    out = requests.post("http://localhost:9200/geonames/_search?pretty",
-                        data=json.dumps(payload))
-    return out.json()
+    q = MultiMatch(query=placename, fields=['asciiname', 'alternativenames'])
+    res = S.filter('term', country_code3=country_filter).query(q).execute()
+    out = {'hits': {'hits': []}}
+    keys = [u'admin1_code', u'admin2_code', u'admin3_code', u'admin4_code',
+            u'alternativenames', u'asciiname', u'cc2', u'coordinates',
+            u'country_code2', u'country_code3', u'dem', u'elevation',
+            u'feature_class', u'feature_code', u'geonameid',
+            u'modification_date', u'name', u'population', u'timzeone']
+    for i in res:
+        i_out = {}
+        for k in keys:
+            i_out[k] = i[k]
+        out['hits']['hits'].append(i_out)
+    return out
     # e.g.: query_geonames("Aleppo", ["IRQ", "SYR"])
 
 
 def query_geonames_featureclass(placename, country_filter, feature_class):
-    payload = {
-    "query": {
-        "filtered": {
-            "query": {
-                "query_string": {
-                    "query": placename,
-                    "fields": ["asciiname^5", "alternativenames"]
-                }
-            },
-                "filter": {
-                    "and" : [
-                        {
-                         "terms" : {
-                        "country_code3": country_filter
-                            }
-                        },{
-                         "terms" : {
-                        "feature_class": feature_class
-                        }
-                    }
-            ]
-            }
-        }
-    }
-}
-    out = requests.post("http://localhost:9200/geonames/_search?pretty",
-                        data=json.dumps(payload))
-    return out.json()
-    # e.g.: query_geonames("Aleppo", ["IRQ", "SYR"], ["P"])
+    q = MultiMatch(query=placename, fields=['asciiname', 'alternativenames'])
+    res = S.filter('term', country_code3=country_filter).filter('term', feature_class=feature_class).query(q).execute()
+    out = {'hits': {'hits': []}}
+    keys = [u'admin1_code', u'admin2_code', u'admin3_code', u'admin4_code',
+            u'alternativenames', u'asciiname', u'cc2', u'coordinates',
+            u'country_code2', u'country_code3', u'dem', u'elevation',
+            u'feature_class', u'feature_code', u'geonameid',
+            u'modification_date', u'name', u'population', u'timzeone']
+    for i in res:
+        i_out = {}
+        for k in keys:
+            i_out[k] = i[k]
+        out['hits']['hits'].append(i_out)
+    return out
+    # e.g.: query_geonames_featureclass("Aleppo", ["IRQ", "SYR"], ["P"])
 
 
 def text_to_country(text):
