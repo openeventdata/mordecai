@@ -45,14 +45,13 @@ def unauthorized():
 
 
 # read in config file
-__location__ = os.path.realpath(
-    os.path.join(os.getcwd(), os.path.dirname(__file__)))
-config_file = glob.glob(os.path.join('../' + __location__, 'config.ini'))
+__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+config_file = glob.glob(os.path.join(__location__, '../config.ini'))
 parser = ConfigParser()
-word2vec_model = os.path.join(__location__,
-                              'GoogleNews-vectors-negative300.bin')
+parser.read(config_file)
+word2vec_model = parser.get('Locations', 'word2vec_model'__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
-#countries_file = glob.glob(os.path.join(__location__, 'countries.json'))[0]
+                            #countries_file = glob.glob(os.path.join(__location__, 'countries.json'))[0]
 #with open(countries_file, 'r') as f:
 #    stopword_country_names = json.loads(f.read())
 
