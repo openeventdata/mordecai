@@ -49,6 +49,7 @@ __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
 config_file = glob.glob(os.path.join('../' + __location__, 'config.ini'))
 parser = ConfigParser()
+parser.read(config_file)
 word2vec_model= parser.get('Locations', 'word2vec_model')
 
 #countries_file = glob.glob(os.path.join(__location__, 'countries.json'))[0]
