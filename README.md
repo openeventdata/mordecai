@@ -18,9 +18,7 @@ The purpose of mordecai is to accept text and return structured geographic infor
   (with some custom logic) to find the lat/lon for each place mentioned in the
   text.
 
-It runs as a RESTful service in the Python
-[Tangelo](https://github.com/Kitware/tangelo) web server.
-
+It runs as a Flask-RESTful service.
 
 Endpoints
 ---------
@@ -53,7 +51,18 @@ Example usage
 -------------
 
 ```
-curl -XPOST -H "Content-Type: application/json"  --data '{"text":"(Reuters) - The Iraqi government claimed victory over Islamic State insurgents in Tikrit on Wednesday after a month-long battle for the city supported by Shiite militiamen and U.S.-led air strikes, saying that only small pockets of resistance remained. State television showed Prime Minister Haidar al-Abadi, accompanied by leaders of the army and police, the provincial governor and Shiite paramilitary leaders, parading through Tikrit and raising an Iraqi flag. The militants captured the city, about 140 km (90 miles) north of Baghdad, last June as they swept through most of Iraqs Sunni Muslim territories, swatting aside a demoralized and disorganized army that has now required an uneasy combination of Iranian and American support to get back on its feet."}' 'http://192.168.50.236:8999/services/mordecai/places'
+curl -XPOST -H "Content-Type: application/json"  --data '{"text":"(Reuters) -
+The Iraqi government claimed victory over Islamic State insurgents in Tikrit on
+Wednesday after a month-long battle for the city supported by Shiite militiamen
+and U.S.-led air strikes, saying that only small pockets of resistance
+remained. State television showed Prime Minister Haidar al-Abadi, accompanied
+by leaders of the army and police, the provincial governor and Shiite
+paramilitary leaders, parading through Tikrit and raising an Iraqi flag. The
+militants captured the city, about 140 km (90 miles) north of Baghdad, last
+June as they swept through most of Iraqs Sunni Muslim territories, swatting
+aside a demoralized and disorganized army that has now required an uneasy
+combination of Iranian and American support to get back on its feet."}'
+'http://localhost:5000/places'
 ```
 
 Returns:
@@ -68,7 +77,7 @@ import requests
 headers = {'Content-Type': 'application/json'}
 data = {'text': """(Reuters) - The Iraqi government claimed victory over Islamic State insurgents in Tikrit on Wednesday after a month-long battle for the city supported by Shiite militiamen and U.S.-led air strikes, saying that only small pockets of resistance remained. State television showed Prime Minister Haidar al-Abadi, accompanied by leaders of the army and police, the provincial governor and Shiite paramilitary leaders, parading through Tikrit and raising an Iraqi flag. The militants captured the city, about 140 km (90 miles) north of Baghdad, last June as they swept through most of Iraqs Sunni Muslim territories, swatting aside a demoralized and disorganized army that has now required an uneasy combination of Iranian and American support to get back on its feet."""}
 data = json.dumps(data)
-out = requests.post('http://localhost:8999/places', data=data, headers=headers)
+out = requests.post('http://localhost:5000/places', data=data, headers=headers)
 ```
 
 Customization
