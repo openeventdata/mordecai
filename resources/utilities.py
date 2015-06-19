@@ -1,3 +1,4 @@
+from __future__ import print_function
 from __future__ import unicode_literals
 import os
 import sys
@@ -17,10 +18,19 @@ parser.read(config_file)
 mitie_directory = parser.get('Locations', 'mitie_directory')
 mitie_ner_model = parser.get('Locations', 'mitie_ner_model')
 
+try:
+    if 'Server' in parser.sections():
+        es_ip = parser.get('Server', 'geonames')
+    else:
+        es_ip = os.environ['ES-GEONAMES_PORT_9200_TCP_ADDR']
+except Exception as e:
+    print('Problem parsing config file. {}'.format(e))
+
 sys.path.append(mitie_directory)
 ner_model = named_entity_extractor(mitie_ner_model)
 
-CLIENT = Elasticsearch()
+es_url = 'http://{}:{}/'.format(es_ip, '9200')
+CLIENT = Elasticsearch(es_url)
 S = Search(CLIENT)
 
 
