@@ -41,9 +41,7 @@ def unauthorized():
     return make_response(jsonify({'message': 'Unauthorized access'}), 403)
 
 # read in config file
-__location__ = os.path.realpath(os.path.join(os.getcwd(),
-                                             os.path.dirname(__file__)))
-config_file = glob.glob(os.path.join(__location__, '../config.ini'))
+config_file = glob.glob('../config.ini')
 parser = ConfigParser()
 parser.read(config_file)
 mitie_directory = parser.get('Locations', 'mitie_directory')

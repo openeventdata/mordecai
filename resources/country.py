@@ -45,9 +45,7 @@ def unauthorized():
 
 
 # read in config file
-__location__ = os.path.realpath(
-    os.path.join(os.getcwd(), os.path.dirname(__file__)))
-config_file = glob.glob(os.path.join('../' + __location__, 'config.ini'))
+config_file = glob.glob(os.path.join('../config.ini')
 parser = ConfigParser()
 parser.read(config_file)
 word2vec_model= parser.get('Locations', 'word2vec_model')
