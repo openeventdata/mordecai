@@ -2,7 +2,6 @@ from __future__ import unicode_literals
 import os
 import sys
 import glob
-import pandas as pd
 from mitie import *
 from elasticsearch_dsl import Search
 from ConfigParser import ConfigParser
@@ -125,33 +124,34 @@ def query_geonames_featureclass(placename, country_filter, feature_class):
     # e.g.: query_geonames_featureclass("Aleppo", ["IRQ", "SYR"], ["P"])
 
 
-def text_to_country(text):
-    locations = []
-    # text = text.decode("utf-8")
-    # text = text.encode("utf-8")
-    out = talk_to_mitie(text)
-    for i in out['entities']:
-        if i['tag'] == "LOCATION" or i['tag'] == "location":
-            print i['text'],
-            # try:
-            t = query_geonames(i['text'])
-            print(len(t['hits']['hits'])),
-            for i in t['hits']['hits']:
-                cc = i['_source']['country_code3']
-                # score = i['_score']
-                altnames = i['_source']['alternativenames'].split(',')
-                score = len(altnames)
-                locations.append((cc, score))
-            # except:
-            print "Unexpected error:", sys.exc_info()[0]
-            print ", ",
-
-    if locations != []:
-        locations = pd.DataFrame(locations)
-        locations.columns = ['country', 'score']
-        total = locations.groupby(['country']).sum()
-        total = total.sort(['score'], ascending=[0]).head(1)
-        total = total.reset_index()['country'].tolist()[0]
-        return total
-    else:
-        return []
+#import pandas as pd
+#def text_to_country(text):
+#    locations = []
+#    # text = text.decode("utf-8")
+#    # text = text.encode("utf-8")
+#    out = talk_to_mitie(text)
+#    for i in out['entities']:
+#        if i['tag'] == "LOCATION" or i['tag'] == "location":
+#            print i['text'],
+#            # try:
+#            t = query_geonames(i['text'])
+#            print(len(t['hits']['hits'])),
+#            for i in t['hits']['hits']:
+#                cc = i['_source']['country_code3']
+#                # score = i['_score']
+#                altnames = i['_source']['alternativenames'].split(',')
+#                score = len(altnames)
+#                locations.append((cc, score))
+#            # except:
+#            print "Unexpected error:", sys.exc_info()[0]
+#            print ", ",
+#
+#    if locations != []:
+#        locations = pd.DataFrame(locations)
+#        locations.columns = ['country', 'score']
+#        total = locations.groupby(['country']).sum()
+#        total = total.sort(['score'], ascending=[0]).head(1)
+#        total = total.reset_index()['country'].tolist()[0]
+#        return total
+#    else:
+#        return []
