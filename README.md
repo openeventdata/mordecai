@@ -20,6 +20,12 @@ The purpose of mordecai is to accept text and return structured geographic infor
 
 It runs as a Flask-RESTful service.
 
+Requirements
+------------
+
+The software currently assumes that an Elasticsearch instance is running withe
+Geonames gazetteer as the index. 
+
 Endpoints
 ---------
 
@@ -35,11 +41,6 @@ Endpoints
 
     Out: list of dictionaries of placenames and lat/lon in text. The keys are "lat", "lon", "placename", "searchterm", and "countrycode". 
 
-3. Not built yet: `/locate`
-
-    In: text, list of country codes
-
-    Out: Pick "best" location for the text. Alternatively, where did a thing take place? [Who knows what that means]
 
 4. `/osc`
 
