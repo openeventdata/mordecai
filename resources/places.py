@@ -41,12 +41,17 @@ def unauthorized():
     return make_response(jsonify({'message': 'Unauthorized access'}), 403)
 
 # read in config file
-__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+__location__ = os.path.realpath(os.path.join(os.getcwd(),
+                                             os.path.dirname(__file__)))
 config_file = glob.glob(os.path.join(__location__, '../config.ini'))
+parser = ConfigParser()
 parser.read(config_file)
 mitie_directory = parser.get('Locations', 'mitie_directory')
 
 sys.path.append(mitie_directory)
+
+# Setup connection for elasticsearch
+es_conn = utilities.setup_es()
 
 
 country_names = ["Afghanistan","Åland Islands","Albania","Algeria","American Samoa",
@@ -154,7 +159,6 @@ class PlacesAPI(Resource):
     def post(self):
         args = self.reqparse.parse_args()
         text = args['text']
-        locations = []
         try:
             country_filter = CountryAPI().process(text)
         except ValueError:
@@ -162,7 +166,13 @@ class PlacesAPI(Resource):
 
         out = utilities.mitie_context(text)
 
-        for i in out['entities']:
+        located = process(out, country_filter)
+
+        return located
+
+    def process(self, locs, country_filter):
+        locations = []
+        for i in locs['entities']:
             if i['text'] in country_names:
                 print " (Country/blacklist. Skipping...)"
             elif i['tag'] == "LOCATION" or i['tag'] == "Location":
@@ -179,7 +189,8 @@ class PlacesAPI(Resource):
                     try:
                         t = place_cache[cache_term]
                     except KeyError:
-                        t = utilities.query_geonames_featureclass(searchterm,
+                        t = utilities.query_geonames_featureclass(es_conn,
+                                                                  searchterm,
                                                                   country_filter,
                                                                   feature_class)
                         place_cache[cache_term] = t
@@ -191,7 +202,6 @@ class PlacesAPI(Resource):
                     # [35.13179, 36.75783, 'searchterm', u'matchname',
                     # u'feature_class', u'country_code3']:
                     if loc:
-                        print('\n\nIn the loc section of the thing...')
                         formatted_loc = {"lat": loc[0], "lon": loc[1],
                                          "searchterm": loc[2],
                                          "placename": loc[3],
