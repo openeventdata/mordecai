@@ -27,18 +27,19 @@ def setup_mitie():
 
 
 def setup_es():
-    global ner_model, S
     try:
         if 'Server' in parser.sections():
             es_ip = parser.get('Server', 'geonames')
         else:
             es_ip = os.environ['ES-GEONAMES_PORT_9200_TCP_ADDR']
+
+        es_url = 'http://{}:{}/'.format(es_ip, '9200')
+        CLIENT = Elasticsearch(es_url)
+        S = Search(CLIENT)
+
+        return S
     except Exception as e:
         print('Problem parsing config file. {}'.format(e))
-
-    es_url = 'http://{}:{}/'.format(es_ip, '9200')
-    CLIENT = Elasticsearch(es_url)
-    S = Search(CLIENT)
 
 
 def talk_to_mitie(text, ner_model):
@@ -105,9 +106,9 @@ def mitie_context(text, ner_model):
     return {"entities": out}
 
 
-def query_geonames(placename, country_filter):
+def query_geonames(conn, placename, country_filter):
     q = MultiMatch(query=placename, fields=['asciiname', 'alternativenames'])
-    res = S.filter('term', country_code3=country_filter).query(q).execute()
+    res = conn.filter('term', country_code3=country_filter).query(q).execute()
     out = {'hits': {'hits': []}}
     keys = [u'admin1_code', u'admin2_code', u'admin3_code', u'admin4_code',
             u'alternativenames', u'asciiname', u'cc2', u'coordinates',
@@ -123,9 +124,9 @@ def query_geonames(placename, country_filter):
     # e.g.: query_geonames("Aleppo", ["IRQ", "SYR"])
 
 
-def query_geonames_featureclass(placename, country_filter, feature_class):
+def query_geonames_featureclass(conn, placename, country_filter, feature_class):
     q = MultiMatch(query=placename, fields=['asciiname', 'alternativenames'])
-    res = S.filter('term', country_code3=country_filter).filter('term', feature_class=feature_class).query(q).execute()
+    res = conn.filter('term', country_code3=country_filter).filter('term', feature_class=feature_class).query(q).execute()
     out = {'hits': {'hits': []}}
     keys = [u'admin1_code', u'admin2_code', u'admin3_code', u'admin4_code',
             u'alternativenames', u'asciiname', u'cc2', u'coordinates',
