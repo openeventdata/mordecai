@@ -18,23 +18,30 @@ parser.read(config_file)
 mitie_directory = parser.get('Locations', 'mitie_directory')
 mitie_ner_model = parser.get('Locations', 'mitie_ner_model')
 
-try:
-    if 'Server' in parser.sections():
-        es_ip = parser.get('Server', 'geonames')
-    else:
-        es_ip = os.environ['ES-GEONAMES_PORT_9200_TCP_ADDR']
-except Exception as e:
-    print('Problem parsing config file. {}'.format(e))
 
-sys.path.append(mitie_directory)
-ner_model = named_entity_extractor(mitie_ner_model)
+def setup_mitie():
+    sys.path.append(mitie_directory)
+    ner_model = named_entity_extractor(mitie_ner_model)
 
-es_url = 'http://{}:{}/'.format(es_ip, '9200')
-CLIENT = Elasticsearch(es_url)
-S = Search(CLIENT)
+    return ner_model
 
 
-def talk_to_mitie(text):
+def setup_es():
+    global ner_model, S
+    try:
+        if 'Server' in parser.sections():
+            es_ip = parser.get('Server', 'geonames')
+        else:
+            es_ip = os.environ['ES-GEONAMES_PORT_9200_TCP_ADDR']
+    except Exception as e:
+        print('Problem parsing config file. {}'.format(e))
+
+    es_url = 'http://{}:{}/'.format(es_ip, '9200')
+    CLIENT = Elasticsearch(es_url)
+    S = Search(CLIENT)
+
+
+def talk_to_mitie(text, ner_model):
     # Function that accepts text to MITIE and gets entities and HTML in response
     text = text.encode("utf-8")
     tokens = tokenize(text)
@@ -66,7 +73,7 @@ def talk_to_mitie(text):
     return {"entities": out, "html": htmlu}
 
 
-def mitie_context(text):
+def mitie_context(text, ner_model):
     # Function that accepts text to MITIE and returns entities
     # (and +/- 3 words of context)
     text = text.encode("utf-8")
@@ -132,36 +139,3 @@ def query_geonames_featureclass(placename, country_filter, feature_class):
         out['hits']['hits'].append(i_out)
     return out
     # e.g.: query_geonames_featureclass("Aleppo", ["IRQ", "SYR"], ["P"])
-
-
-#import pandas as pd
-#def text_to_country(text):
-#    locations = []
-#    # text = text.decode("utf-8")
-#    # text = text.encode("utf-8")
-#    out = talk_to_mitie(text)
-#    for i in out['entities']:
-#        if i['tag'] == "LOCATION" or i['tag'] == "location":
-#            print i['text'],
-#            # try:
-#            t = query_geonames(i['text'])
-#            print(len(t['hits']['hits'])),
-#            for i in t['hits']['hits']:
-#                cc = i['_source']['country_code3']
-#                # score = i['_score']
-#                altnames = i['_source']['alternativenames'].split(',')
-#                score = len(altnames)
-#                locations.append((cc, score))
-#            # except:
-#            print "Unexpected error:", sys.exc_info()[0]
-#            print ", ",
-#
-#    if locations != []:
-#        locations = pd.DataFrame(locations)
-#        locations.columns = ['country', 'score']
-#        total = locations.groupby(['country']).sum()
-#        total = total.sort(['score'], ascending=[0]).head(1)
-#        total = total.reset_index()['country'].tolist()[0]
-#        return total
-#    else:
-#        return []

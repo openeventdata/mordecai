@@ -91,3 +91,13 @@ Mordecai is meant to be easy to customize. There are a few ways to do this.
 2. Custom place-picking logic. See the `/osc` for an example. Prior knowledge about the place text is about and the vocabulary used in the text to describe place times can be hard coded into a special endpoint for a particular corpus.
 
 3. *[Not yet implemented]* If a corpus is known to be about a specific country, that country can be passed to `places` to limit the search to places in that country.
+
+Tests
+-----
+
+`mordecai` currently includes a few basic unit tests. To run the tests:
+
+```
+cd resources
+py.test
+```
