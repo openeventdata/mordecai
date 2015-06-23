@@ -52,6 +52,7 @@ sys.path.append(mitie_directory)
 
 # Setup connection for elasticsearch
 es_conn = utilities.setup_es()
+ner_model = utilities.setup_mitie()
 
 
 country_names = ["Afghanistan","Åland Islands","Albania","Algeria","American Samoa",
@@ -164,9 +165,9 @@ class PlacesAPI(Resource):
         except ValueError:
             return json.dumps(locations)
 
-        out = utilities.mitie_context(text)
+        out = utilities.mitie_context(text, ner_model)
 
-        located = process(out, country_filter)
+        located = self.process(out, country_filter)
 
         return located
 
