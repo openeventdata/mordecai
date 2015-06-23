@@ -23,8 +23,8 @@ It runs as a Flask-RESTful service.
 Requirements
 ------------
 
-The software currently assumes that an Elasticsearch instance is running withe
-Geonames gazetteer as the index. 
+The software currently assumes that an Elasticsearch instance is running with
+the Geonames gazetteer as the index. 
 
 Endpoints
 ---------
