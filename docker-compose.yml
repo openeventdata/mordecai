@@ -5,4 +5,4 @@ mordecai:
     ports:
         - "5000:5000"
 elastic:
-    image: caerusassociates/es-geonames/
+    image: caerusassociates/es-geonames
