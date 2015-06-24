@@ -145,6 +145,7 @@ class PlacesAPI(Resource):
     def __init__(self):
         self.reqparse = reqparse.RequestParser()
         self.reqparse.add_argument('text', type=unicode, location='json')
+        self.reqparse.add_argument('country', type=unicode, location='json')
         super(PlacesAPI, self).__init__()
 
     def get(self):
@@ -160,10 +161,12 @@ class PlacesAPI(Resource):
     def post(self):
         args = self.reqparse.parse_args()
         text = args['text']
-        try:
-            country_filter = CountryAPI().process(text)
-        except ValueError:
-            return json.dumps(locations)
+        country_filter = args['country']
+        if not country_filter:
+            try:
+                country_filter = CountryAPI().process(text)
+            except ValueError:
+                return json.dumps(locations)
 
         out = utilities.mitie_context(text, ner_model)
 

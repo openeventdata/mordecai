@@ -33,8 +33,8 @@ as an index. It will also build the `mordecai` docker image and link this
 to the Elasticsearch image. 
 
 **Please note that many of the required components for mordecai, such as the
-word2vec and MITIE models, are rather large so download and load times are
-rather large.**
+word2vec and MITIE models, are rather large so downloading and loading takes
+awhile.**
 
 Requirements
 ------------
@@ -82,6 +82,24 @@ combination of Iranian and American support to get back on its feet."}'
 'http://localhost:5000/places'
 ```
 
+Or if you know this text is about Iraq:
+
+```
+curl -XPOST -H "Content-Type: application/json"  --data '{"text":"(Reuters) -
+The Iraqi government claimed victory over Islamic State insurgents in Tikrit on
+Wednesday after a month-long battle for the city supported by Shiite militiamen
+and U.S.-led air strikes, saying that only small pockets of resistance
+remained. State television showed Prime Minister Haidar al-Abadi, accompanied
+by leaders of the army and police, the provincial governor and Shiite
+paramilitary leaders, parading through Tikrit and raising an Iraqi flag. The
+militants captured the city, about 140 km (90 miles) north of Baghdad, last
+June as they swept through most of Iraqs Sunni Muslim territories, swatting
+aside a demoralized and disorganized army that has now required an uneasy
+combination of Iranian and American support to get back on its feet.",
+"country": "IRQ"}'
+'http://localhost:5000/places'
+```
+
 Returns:
 `[{"lat": 34.61581, "placename": "Tikrit", "seachterm": "Tikrit", "lon": 43.67861, "countrycode": "IRQ"}, {"lat": 34.61581, "placename": "Tikrit", "seachterm": "Tikrit", "lon": 43.67861, "countrycode": "IRQ"}, {"lat": 33.32475, "placename": "Baghdad", "seachterm": "Baghdad", "lon": 44.42129, "countrycode": "IRQ"}]`
 
@@ -106,7 +124,7 @@ Mordecai is meant to be easy to customize. There are a few ways to do this.
 
 2. Custom place-picking logic. See the `/osc` for an example. Prior knowledge about the place text is about and the vocabulary used in the text to describe place times can be hard coded into a special endpoint for a particular corpus.
 
-3. *[Not yet implemented]* If a corpus is known to be about a specific country, that country can be passed to `places` to limit the search to places in that country.
+3. If a corpus is known to be about a specific country, that country can be passed to `places` to limit the search to places in that country.
 
 Tests
 -----
