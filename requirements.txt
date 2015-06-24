@@ -20,3 +20,4 @@ smart-open==1.2.1
 tornado==4.2
 urllib3==1.10.4
 Werkzeug==0.10.4
+pytest==2.6.3

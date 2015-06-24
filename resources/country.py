@@ -9,9 +9,7 @@
 from __future__ import unicode_literals
 import re
 import os
-import sys
 import glob
-import json
 import numpy
 import utilities
 from mitie import *
@@ -45,16 +43,12 @@ def unauthorized():
 
 
 # read in config file
-__location__ = os.path.realpath(
-    os.path.join(os.getcwd(), os.path.dirname(__file__)))
-config_file = glob.glob(os.path.join('../' + __location__, 'config.ini'))
+__location__ = os.path.realpath(os.path.join(os.getcwd(),
+                                             os.path.dirname(__file__)))
+config_file = glob.glob(os.path.join(__location__, '../config.ini'))
 parser = ConfigParser()
-word2vec_model = os.path.join(__location__,
-                              'GoogleNews-vectors-negative300.bin')
-
-#countries_file = glob.glob(os.path.join(__location__, 'countries.json'))[0]
-#with open(countries_file, 'r') as f:
-#    stopword_country_names = json.loads(f.read())
+parser.read(config_file)
+word2vec_model = parser.get('Locations', 'word2vec_model')
 
 
 stopword_country_names = {"Afghanistan":"AFG", "Åland Islands":"ALA", "Albania":"ALB", "Algeria":"DZA",
@@ -130,6 +124,10 @@ stopword_country_names = {"Afghanistan":"AFG", "Åland Islands":"ALA", "Albania"
     "Vietnam":"VNM", "Wallis Futuna":"WLF",
     "Western_Sahara":"ESH", "Yemen":"YEM", "Zambia":"ZMB", "Zimbabwe":"ZWE"}
 
+#NER model for MITIE
+ner_model = utilities.setup_mitie()
+
+#Build the index for word2vec
 prebuilt = Word2Vec.load_word2vec_format(word2vec_model, binary=True)
 vocab_set = set(prebuilt.vocab.keys())
 
@@ -172,7 +170,7 @@ class CountryAPI(Resource):
         return output
 
     def process(self, text):
-        out = utilities.talk_to_mitie(text)
+        out = utilities.talk_to_mitie(text, ner_model)
         places = []
         miscs = []
         for i in out['entities']:

@@ -50,6 +50,10 @@ mitie_directory = parser.get('Locations', 'mitie_directory')
 
 sys.path.append(mitie_directory)
 
+# Setup connection for elasticsearch
+es_conn = utilities.setup_es()
+ner_model = utilities.setup_mitie()
+
 
 country_names = ["Afghanistan","Åland Islands","Albania","Algeria","American Samoa",
                  "Andorra","Angola","Anguilla","Antarctica","Antigua and Barbuda",
@@ -156,15 +160,20 @@ class PlacesAPI(Resource):
     def post(self):
         args = self.reqparse.parse_args()
         text = args['text']
-        locations = []
         try:
             country_filter = CountryAPI().process(text)
         except ValueError:
             return json.dumps(locations)
 
-        out = utilities.mitie_context(text)
+        out = utilities.mitie_context(text, ner_model)
 
-        for i in out['entities']:
+        located = self.process(out, country_filter)
+
+        return located
+
+    def process(self, locs, country_filter):
+        locations = []
+        for i in locs['entities']:
             if i['text'] in country_names:
                 print " (Country/blacklist. Skipping...)"
             elif i['tag'] == "LOCATION" or i['tag'] == "Location":
@@ -181,7 +190,8 @@ class PlacesAPI(Resource):
                     try:
                         t = place_cache[cache_term]
                     except KeyError:
-                        t = utilities.query_geonames_featureclass(searchterm,
+                        t = utilities.query_geonames_featureclass(es_conn,
+                                                                  searchterm,
                                                                   country_filter,
                                                                   feature_class)
                         place_cache[cache_term] = t
@@ -193,7 +203,6 @@ class PlacesAPI(Resource):
                     # [35.13179, 36.75783, 'searchterm', u'matchname',
                     # u'feature_class', u'country_code3']:
                     if loc:
-                        print('\n\nIn the loc section of the thing...')
                         formatted_loc = {"lat": loc[0], "lon": loc[1],
                                          "searchterm": loc[2],
                                          "placename": loc[3],
