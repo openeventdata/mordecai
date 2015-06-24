@@ -20,6 +20,22 @@ The purpose of mordecai is to accept text and return structured geographic infor
 
 It runs as a Flask-RESTful service.
 
+Installation
+------------
+
+Standing up the service is as simple as installing
+[docker](https://www.docker.com/) and
+[docker-compose](https://docs.docker.com/compose/). Once these components are
+installed, the service is started by running `docker-compose up`. To run
+the service in the background use `docker-compose up -d`. This will pull
+the Elasticsearch docker image with the Geonames gazetter already stored
+as an index. It will also build the `mordecai` docker image and link this
+to the Elasticsearch image. 
+
+**Please note that many of the required components for mordecai, such as the
+word2vec and MITIE models, are rather large so download and load times are
+rather large.**
+
 Requirements
 ------------
 
