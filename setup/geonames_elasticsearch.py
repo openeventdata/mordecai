@@ -1,16 +1,11 @@
-
 # coding: utf-8
-
-# In[109]:
-
 from pyelasticsearch import bulk_chunks, ElasticSearch
 import csv
 import sys
 
-es = ElasticSearch(urls='http://localhost:9200', timeout=60, max_retries=2)
+csv.field_size_limit(sys.maxsize)
+es = ElasticSearch(urls='http://localhost:9200/', timeout=60, max_retries=2)
 
-
-# In[110]:
 
 def iso_convert(iso2c):
     """
@@ -84,20 +79,16 @@ def iso_convert(iso2c):
         iso3c = "NA"
         return iso3c
 
-
-# In[111]:
-
-f = open('/home/admin1/geocoding/allCountries.txt', 'rt')
+f = open('allCountries.txt', 'rt')
 reader = csv.reader(f, delimiter='\t')
 
-count = 0
-
-def documents():
+def documents(reader, es):
+    count = 0
     for row in reader:
         try:
             coords = row[4] + "," + row[5]
             country_code3 = iso_convert(row[8])
-            doc = {"geonameid" : row[0], 
+            doc = {"geonameid" : row[0],
                     "name" : row[1],
                     "asciiname" : row[2],
                     "alternativenames" : row[3],
@@ -119,35 +110,15 @@ def documents():
                    }
             yield es.index_op(doc, index='geonames', doc_type='geoname')
         except:
-            count = count + 1
-            
-    print count
+            count += 1
+
+    print 'Exception count:', count
 
 
-# In[112]:
-
-#f = open('/home/admin1/geocoding/allCountries.txt', 'rt')
-#reader = csv.reader(f, delimiter='\t')
-
-#for row in reader:
-#    documents()
-
-
-# # sudo vim /etc/init.d/elasticsearch  # (change ES_HEAP_SIZE)
-# # sudo /etc/init.d/elasticsearch start
-# # curl -XDELETE 'localhost:9200/geonames'
-# # curl -XPUT 'localhost:9200/geonames'
-# # curl -XPUT "http://localhost:9200/geonames/geoname/_mapping" -d @geonames_mapping.json
-
-# In[113]:
-
-for chunk in bulk_chunks(documents(), docs_per_chunk=500):
+chunk_count = 0
+for chunk in bulk_chunks(documents(reader, es), docs_per_chunk=500):
     es.bulk(chunk)
-
-
-# In[114]:
+    chunk_count += 1
+    print 'Chunk count:', chunk_count
 
 es.refresh('geonames')
-
-
-
