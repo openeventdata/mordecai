@@ -31,7 +31,7 @@ def setup_es():
         if 'Server' in parser.sections():
             es_ip = parser.get('Server', 'geonames')
         else:
-            es_ip = os.environ['ES-GEONAMES_PORT_9200_TCP_ADDR']
+            es_ip = os.environ['ELASTIC_PORT_9200_TCP_ADDR']
 
         es_url = 'http://{}:{}/'.format(es_ip, '9200')
         CLIENT = Elasticsearch(es_url)
