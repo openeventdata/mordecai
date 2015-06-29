@@ -30,7 +30,10 @@ installed, the service is started by running `docker-compose up`. To run
 the service in the background use `docker-compose up -d`. This will pull
 the Elasticsearch docker image with the Geonames gazetter already stored
 as an index. It will also build the `mordecai` docker image and link this
-to the Elasticsearch image. 
+to the Elasticsearch image. Elasticsearch requires a fair amount of resources,
+specifically RAM, so it should be noted that running this on a small computer
+will be met with suboptimal performance. Our production deployment has the
+Goenames gazetter in an Elasticsearch cluster with a few nodes.
 
 **Please note that many of the required components for mordecai, such as the
 word2vec and MITIE models, are rather large so downloading and loading takes
