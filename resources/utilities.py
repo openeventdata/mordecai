@@ -126,9 +126,10 @@ def query_geonames(conn, placename, country_filter):
 
 
 def query_geonames_featureclass(conn, placename, country_filter, feature_class):
-    country_lower = [x.lower() for x in country_filter]
+    country_lower = [x.lower() for x in [country_filter]]
+    feature_lower = [x.lower() for x in feature_class]
     q = MultiMatch(query=placename, fields=['asciiname', 'alternativenames'])
-    res = conn.filter('term', country_code3=country_lower).filter('term', feature_class=feature_class).query(q).execute()
+    res = conn.filter('term', country_code3=country_lower).filter('term', feature_class=feature_lower).query(q).execute()
     out = {'hits': {'hits': []}}
     keys = [u'admin1_code', u'admin2_code', u'admin3_code', u'admin4_code',
             u'alternativenames', u'asciiname', u'cc2', u'coordinates',
