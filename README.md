@@ -25,25 +25,28 @@ Installation
 
 Standing up the service is as simple as installing
 [docker](https://www.docker.com/) and
-[docker-compose](https://docs.docker.com/compose/). Once these components are
-installed, the service is started by running `docker-compose up`. To run
-the service in the background use `docker-compose up -d`. This will pull
-the Elasticsearch docker image with the Geonames gazetter already stored
-as an index. It will also build the `mordecai` docker image and link this
-to the Elasticsearch image. Elasticsearch requires a fair amount of resources,
+[docker-compose](https://docs.docker.com/compose/). If you're using Ubuntu,
+[this gist](https://gist.github.com/wdullaer/f1af16bd7e970389bad3) is a good
+place to start. Once these components are installed, the service is started by
+running `sudo docker-compose up` from inside the `mordecai` directory. To run the
+service in the background use `docker-compose up -d`. This will pull the
+Elasticsearch docker image with the Geonames gazetter already stored as an
+index. It will also build the `mordecai` docker image and link this to the
+Elasticsearch image. Elasticsearch requires a fair amount of resources,
 specifically RAM, so it should be noted that running this on a small computer
 will be met with suboptimal performance. Our production deployment has the
-Goenames gazetter in an Elasticsearch cluster with a few nodes.
+Geonames gazetter in an Elasticsearch cluster with a few nodes.
 
 **Please note that many of the required components for mordecai, such as the
 word2vec and MITIE models, are rather large so downloading and loading takes
-awhile.**
+a while.**
 
 Requirements
 ------------
 
 The software currently assumes that an Elasticsearch instance is running with
-the Geonames gazetteer as the index. 
+the Geonames gazetteer as the index. This should be taken care of if you used
+`docker-compose`.
 
 Endpoints
 ---------
@@ -71,36 +74,13 @@ Example usage
 -------------
 
 ```
-curl -XPOST -H "Content-Type: application/json"  --data '{"text":"(Reuters) -
-The Iraqi government claimed victory over Islamic State insurgents in Tikrit on
-Wednesday after a month-long battle for the city supported by Shiite militiamen
-and U.S.-led air strikes, saying that only small pockets of resistance
-remained. State television showed Prime Minister Haidar al-Abadi, accompanied
-by leaders of the army and police, the provincial governor and Shiite
-paramilitary leaders, parading through Tikrit and raising an Iraqi flag. The
-militants captured the city, about 140 km (90 miles) north of Baghdad, last
-June as they swept through most of Iraqs Sunni Muslim territories, swatting
-aside a demoralized and disorganized army that has now required an uneasy
-combination of Iranian and American support to get back on its feet."}'
-'http://localhost:5000/places'
+curl -XPOST -H "Content-Type: application/json"  --data '{"text":"(Reuters) - The Iraqi government claimed victory over Islamic State insurgents in Tikrit on Wednesday after a month-long battle for the city supported by Shiite militiamen and U.S.-led air strikes, saying that only small pockets of resistance remained. State television showed Prime Minister Haidar al-Abadi, accompanied by leaders of the army and police, the provincial governor and Shiite paramilitary leaders, parading through Tikrit and raising an Iraqi flag. The militants captured the city, about 140 km (90 miles) north of Baghdad, last June as they swept through most of Iraqs Sunni Muslim territories, swatting aside a demoralized and disorganized army that has now required an uneasy combination of Iranian and American support to get back on its feet."}' 'http://localhost:5000/places'
 ```
 
 Or if you know this text is about Iraq:
 
 ```
-curl -XPOST -H "Content-Type: application/json"  --data '{"text":"(Reuters) -
-The Iraqi government claimed victory over Islamic State insurgents in Tikrit on
-Wednesday after a month-long battle for the city supported by Shiite militiamen
-and U.S.-led air strikes, saying that only small pockets of resistance
-remained. State television showed Prime Minister Haidar al-Abadi, accompanied
-by leaders of the army and police, the provincial governor and Shiite
-paramilitary leaders, parading through Tikrit and raising an Iraqi flag. The
-militants captured the city, about 140 km (90 miles) north of Baghdad, last
-June as they swept through most of Iraqs Sunni Muslim territories, swatting
-aside a demoralized and disorganized army that has now required an uneasy
-combination of Iranian and American support to get back on its feet.",
-"country": "IRQ"}'
-'http://localhost:5000/places'
+curl -XPOST -H "Content-Type: application/json"  --data '{"text":"(Reuters) - The Iraqi government claimed victory over Islamic State insurgents in Tikrit on Wednesday after a month-long battle for the city supported by Shiite militiamen and U.S.-led air strikes, saying that only small pockets of resistance remained. State television showed Prime Minister Haidar al-Abadi, accompanied by leaders of the army and police, the provincial governor and Shiite paramilitary leaders, parading through Tikrit and raising an Iraqi flag. The militants captured the city, about 140 km (90 miles) north of Baghdad, last June as they swept through most of Iraqs Sunni Muslim territories, swatting aside a demoralized and disorganized army that has now required an uneasy combination of Iranian and American support to get back on its feet.", "country": "IRQ"}' 'http://localhost:5000/places'
 ```
 
 Returns:
