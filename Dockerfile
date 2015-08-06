@@ -23,7 +23,7 @@ RUN git clone https://github.com/mit-nlp/MITIE.git
 WORKDIR /home/ubuntu/MITIE
 
 RUN wget http://sourceforge.net/projects/mitie/files/binaries/MITIE-models-v0.2.tar.bz2
-RUN tar xjf MITIE-models-v0.2.tar.bz2
+RUN sudo tar xjf MITIE-models-v0.2.tar.bz2
 RUN mkdir /home/ubuntu/MITIE/mitielib/build
 RUN cd mitielib/build; cmake ..
 RUN cd mitielib/build; cmake --build . --config Release --target install
