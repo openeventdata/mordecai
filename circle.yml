@@ -1,0 +1,6 @@
+machine:
+  services:
+      - docker
+test:
+  override:
+      - docker run -w /src/resources mordecai py.test
