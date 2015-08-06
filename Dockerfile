@@ -14,15 +14,19 @@ ADD . /src
 RUN pip install -r /src/requirements.txt
 
 RUN mkdir /home/ubuntu
+WORKDIR /home/ubuntu
 
-RUN cd /home/ubuntu; wget https://s3.amazonaws.com/mordecai-geo/GoogleNews-vectors-negative300.bin.gz; \
+RUN wget https://s3.amazonaws.com/mordecai-geo/GoogleNews-vectors-negative300.bin.gz; \
 gunzip GoogleNews-vectors-negative300.bin.gz
 
-RUN cd /home/ubuntu; git clone https://github.com/mit-nlp/MITIE.git
-RUN cd /home/ubuntu/MITIE; make MITIE-models
+RUN git clone https://github.com/mit-nlp/MITIE.git
+WORKDIR /home/ubuntu/MITIE
+
+RUN wget http://sourceforge.net/projects/mitie/files/binaries/MITIE-models-v0.2.tar.bz2
+RUN tar xjf MITIE-models-v0.2.tar.bz2
 RUN mkdir /home/ubuntu/MITIE/mitielib/build
-RUN cd /home/ubuntu/MITIE/mitielib/build; cmake ..
-RUN cd /home/ubuntu/MITIE/mitielib/build; cmake --build . --config Release --target install
+RUN cd mitielib/build; cmake ..
+RUN cd mitielib/build; cmake --build . --config Release --target install
 RUN pip install git+https://github.com/caerusassociates/mitie-py.git
 
 EXPOSE 5000

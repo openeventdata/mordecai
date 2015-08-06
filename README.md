@@ -1,3 +1,5 @@
+[![Circle CI](https://circleci.com/gh/caerusassociates/mordecai.svg?style=svg)](https://circleci.com/gh/caerusassociates/mordecai)
+
 mordecai
 =========
 
