@@ -1,6 +1,10 @@
 machine:
   services:
-      - docker
+    - docker
+dependencies:
+  override:
+    - docker info
+    - docker build -t caerusassociates/mordecai .
 test:
   override:
-      - docker run -w /src/resources mordecai py.test
+    - docker run -w /src/resources caerusassociates/mordecai py.test
