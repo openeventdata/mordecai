@@ -5,7 +5,8 @@ MAINTAINER Casey Hilland <chilland@caerusassociates.com>
 RUN echo "deb http://archive.ubuntu.com/ubuntu/ $(lsb_release -sc) main universe" >> /etc/apt/sources.list
 
 RUN apt-get update && apt-get install -y git build-essential wget tar \
-python-setuptools python-dev gfortran libopenblas-dev liblapack-dev cmake
+python-setuptools python-dev gfortran libopenblas-dev liblapack-dev cmake \
+python-numpy python-scipy
 
 RUN easy_install pip
 RUN pip install --upgrade pip

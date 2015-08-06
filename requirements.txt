@@ -5,7 +5,6 @@ bz2file==0.98
 certifi==2015.4.28
 elasticsearch==1.6.0
 elasticsearch-dsl==0.0.4
-numpy==1.9.2
 Flask==0.10.1
 Flask-HTTPAuth==2.5.0
 Flask-RESTful==0.3.3
