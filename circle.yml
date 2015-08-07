@@ -9,4 +9,4 @@ test:
   override:
     - docker run -w /src/resources caerusassociates/mordecai py.test
     - docker run -d -p 5000:5000 caerusassociates/mordecai; sleep 10
-    - curl --retry 10 --retry-delay 5 -v http://localhost:5000/
+    - curl --retry 10 --retry-delay 5 -v http://localhost:5000/places
