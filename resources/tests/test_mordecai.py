@@ -4,7 +4,7 @@ from ..places import PlacesAPI
 
 
 def test_places_api_one():
-    if os.environ['CI']:
+    if os.environ.get('CI'):
         a = PlacesAPI()
         locs = {u'entities': [{u'context': ['meeting', 'happened', 'in', '.'],
                             u'score': 1.3923831181343844, u'tag': u'LOCATION',
