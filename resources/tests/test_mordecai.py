@@ -5,8 +5,8 @@ from ..places import PlacesAPI
 
 def test_places_api_one():
     if os.environ.get('CI'):
-        pass
-
+        ci = 'circle'
+        assert ci == 'circle'
     else:
         a = PlacesAPI()
         locs = {u'entities': [{u'context': ['meeting', 'happened', 'in', '.'],
