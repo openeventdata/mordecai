@@ -55,48 +55,76 @@ es_conn = utilities.setup_es()
 ner_model = utilities.setup_mitie()
 
 
-country_names = ["Afghanistan","Åland Islands","Albania","Algeria","American Samoa",
-                 "Andorra","Angola","Anguilla","Antarctica","Antigua and Barbuda",
-                 "Argentina","Armenia","Aruba","Ascension Island","Australia","Austria",
-                 "Azerbaijan","Bahamas","Bahrain","Bangladesh","Barbados","Belarus",
-                 "Belgium","Belize","Benin","Bermuda","Bhutan","Bolivia",
-                 "Bonaire, Sint Eustatius, and Saba","Bosnia and Herzegovina","Botswana",
-                 "Bouvet Island","Brazil","Britain","Great Britain", "British Indian Ocean Territory",
-                 "British Virgin Islands","Brunei","Bulgaria","Burkina Faso","Burundi","Cambodia",
-                 "Cameroon","Canada","Canary Islands","Cape Verde","Cayman Islands","Central African Republic",
-                 "Ceuta and Melilla","Chad","Chile","China","Christmas Island","Clipperton Island",
-                 "Cocos [Keeling] Islands","Colombia","Comoros","Congo - Brazzaville","Congo - Kinshasa","Congo",
-                 "Democratic Republic of Congo", "Cook Islands","Costa Rica","Côte d’Ivoire","Croatia","Cuba",
-                 "Curaçao","Cyprus","Czech Republic","Denmark","Diego Garcia","Djibouti","Dominica",
-                 "Dominican Republic","Ecuador","Egypt","El Salvador","Equatorial Guinea","Eritrea",
-                 "Estonia","Ethiopia","European Union","Falkland Islands","Faroe Islands","Fiji","Finland",
-                 "France","French Guiana","French Polynesia","French Southern Territories","Gabon","Gambia",
-                 "Gaza","Georgia","Germany","Ghana","Gibraltar","Greece","Greenland","Grenada","Guadeloupe",
-                 "Guam","Guatemala","Guernsey","Guinea","Guinea-Bissau","Guyana","Haiti",
-                 "Heard Island and McDonald Islands","Honduras","Hong Kong SAR China","Hungary","Iceland",
-                 "India","Indonesia","Iran","Iraq","Ireland","Isle of Man","Israel","Italy","Jamaica","Japan",
-                 "Jersey","Jordan","Kazakhstan","Kenya","Kiribati","Kuwait","Kyrgyzstan","Laos","Latvia","Lebanon",
-                 "Lesotho","Liberia","Libya","Liechtenstein","Lithuania","Luxembourg","Macau SAR China","Macedonia",
-                 "Madagascar","Malawi","Malaysia","Maldives","Mali","Malta","Marshall Islands","Martinique","Mauritania",
-                 "Mauritius","Mayotte","Mexico","Micronesia","Moldova","Monaco","Mongolia","Montenegro","Montserrat",
-                 "Morocco","Mozambique","Myanmar [Burma]","Namibia","Nauru","Nepal","Netherlands","Netherlands Antilles",
-                 "New Caledonia","New Zealand","Nicaragua","Niger","Nigeria","Niue","Norfolk Island","North Korea",
-                 "Northern Ireland", "Northern Mariana Islands","Norway","Oman","Outlying Oceania","Pakistan","Palau",
-                 "Palestinian Territories","Panama","Papua New Guinea","Paraguay","Peru","Philippines","Pitcairn Islands",
-                 "Poland","Portugal","Puerto Rico","Qatar","Réunion","Romania","Russia","Rwanda","Saint Barthélemy",
-                 "Saint Helena","Saint Kitts and Nevis","Saint Lucia","Saint Martin","Saint Pierre and Miquelon",
-                 "Saint Vincent and the Grenadines","Samoa","San Marino","São Tomé and Príncipe","Saudi Arabia",
-                 "Senegal","Serbia","Serbia and Montenegro","Seychelles","Sierra Leone","Singapore","Sint Maarten",
-                 "Slovakia","Slovenia","Solomon Islands","Somalia","South Africa",
-                 "South Georgia and the South Sandwich Islands","South Korea","South Sudan","Spain","Sri Lanka",
-                 "Sudan","Suriname","Svalbard and Jan Mayen","Swaziland","Sweden","Switzerland","Syria","Taiwan",
-                 "Tajikistan","Tanzania","Thailand","Timor-Leste","Togo","Tokelau","Tonga","Trinidad and Tobago",
-                 "Tristan da Cunha","Tunisia","Turkey","Turkmenistan","Turks and Caicos Islands","Tuvalu",
-                 "U.S. Minor Outlying Islands","U.S. Virgin Islands","Uganda","Ukraine","United Arab Emirates",
-                 "United Kingdom","UK","United States","USA", "United States of America", "Uruguay","Uzbekistan",
-                 "Vanuatu","Vatican City","Venezuela","Vietnam","Wallis and Futuna","Western Sahara","Yemen",
-                 "Zambia","Zimbabwe", "Europe", "America", "Africa", "Asia", "North America", "South America",
-                 "United Nations","UN"]
+country_names = ["Afghanistan", "Åland Islands", "Albania", "Algeria",
+                 "American Samoa", "Andorra", "Angola", "Anguilla",
+                 "Antarctica", "Antigua and Barbuda", "Argentina", "Armenia",
+                 "Aruba", "Ascension Island", "Australia", "Austria",
+                 "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados",
+                 "Belarus", "Belgium", "Belize", "Benin", "Bermuda", "Bhutan",
+                 "Bolivia", "Bonaire,  Sint Eustatius,  and Saba",
+                 "Bosnia and Herzegovina", "Botswana", "Bouvet Island",
+                 "Brazil", "Britain", "Great Britain",
+                 "British Indian Ocean Territory", "British Virgin Islands",
+                 "Brunei", "Bulgaria", "Burkina Faso", "Burundi", "Cambodia",
+                 "Cameroon", "Canada", "Canary Islands", "Cape Verde",
+                 "Cayman Islands", "Central African Republic",
+                 "Ceuta and Melilla", "Chad", "Chile", "China",
+                 "Christmas Island", "Clipperton Island",
+                 "Cocos [Keeling] Islands", "Colombia", "Comoros",
+                 "Congo - Brazzaville", "Congo - Kinshasa", "Congo",
+                 "Democratic Republic of Congo",  "Cook Islands", "Costa Rica",
+                 "Côte d’Ivoire", "Croatia", "Cuba", "Curaçao", "Cyprus",
+                 "Czech Republic", "Denmark", "Diego Garcia", "Djibouti",
+                 "Dominica", "Dominican Republic", "Ecuador", "Egypt",
+                 "El Salvador", "Equatorial Guinea", "Eritrea", "Estonia",
+                 "Ethiopia", "European Union", "Falkland Islands",
+                 "Faroe Islands", "Fiji", "Finland", "France", "French Guiana",
+                 "French Polynesia", "French Southern Territories", "Gabon",
+                 "Gambia", "Gaza", "Georgia", "Germany", "Ghana", "Gibraltar",
+                 "Greece", "Greenland", "Grenada", "Guadeloupe", "Guam",
+                 "Guatemala", "Guernsey", "Guinea", "Guinea-Bissau", "Guyana",
+                 "Haiti", "Heard Island and McDonald Islands", "Honduras",
+                 "Hong Kong SAR China", "Hungary", "Iceland", "India",
+                 "Indonesia", "Iran", "Iraq", "Ireland", "Isle of Man",
+                 "Israel", "Italy", "Jamaica", "Japan", "Jersey", "Jordan"
+                 "Kazakhstan", "Kenya", "Kiribati", "Kuwait", "Kyrgyzstan",
+                 "Laos", "Latvia", "Lebanon", "Lesotho", "Liberia", "Libya",
+                 "Liechtenstein", "Lithuania", "Luxembourg", "Macau SAR China",
+                 "Macedonia", "Madagascar", "Malawi", "Malaysia", "Maldives",
+                 "Mali", "Malta", "Marshall Islands", "Martinique",
+                 "Mauritania", "Mauritius", "Mayotte", "Mexico", "Micronesia",
+                 "Moldova", "Monaco", "Mongolia", "Montenegro", "Montserrat",
+                 "Morocco", "Mozambique", "Myanmar [Burma]", "Namibia", "Nauru",
+                 "Nepal", "Netherlands", "Netherlands Antilles",
+                 "New Caledonia", "New Zealand", "Nicaragua", "Niger",
+                 "Nigeria", "Niue", "Norfolk Island", "North Korea",
+                 "Northern Ireland",  "Northern Mariana Islands", "Norway",
+                 "Oman", "Outlying Oceania", "Pakistan", "Palau",
+                 "Palestinian Territories", "Panama", "Papua New Guinea",
+                 "Paraguay", "Peru", "Philippines", "Pitcairn Islands",
+                 "Poland", "Portugal", "Puerto Rico", "Qatar", "Réunion",
+                 "Romania", "Russia", "Rwanda", "Saint Barthélemy",
+                 "Saint Helena", "Saint Kitts and Nevis", "Saint Lucia",
+                 "Saint Martin", "Saint Pierre and Miquelon",
+                 "Saint Vincent and the Grenadines", "Samoa", "San Marino",
+                 "São Tomé and Príncipe", "Saudi Arabia", "Senegal", "Serbia",
+                 "Serbia and Montenegro", "Seychelles", "Sierra Leone",
+                 "Singapore", "Sint Maarten", "Slovakia", "Slovenia",
+                 "Solomon Islands", "Somalia", "South Africa",
+                 "South Georgia and the South Sandwich Islands", "South Korea",
+                 "South Sudan", "Spain", "Sri Lanka", "Sudan", "Suriname",
+                 "Svalbard and Jan Mayen", "Swaziland", "Sweden", "Switzerland",
+                 "Syria", "Taiwan", "Tajikistan", "Tanzania", "Thailand",
+                 "Timor-Leste", "Togo", "Tokelau", "Tonga",
+                 "Trinidad and Tobago", "Tristan da Cunha", "Tunisia", "Turkey",
+                 "Turkmenistan", "Turks and Caicos Islands", "Tuvalu",
+                 "U.S. Minor Outlying Islands", "U.S. Virgin Islands", "Uganda",
+                 "Ukraine", "United Arab Emirates", "United Kingdom", "UK",
+                 "United States", "USA",  "United States of America", "Uruguay",
+                 "Uzbekistan", "Vanuatu", "Vatican City", "Venezuela",
+                 "Vietnam", "Wallis and Futuna", "Western Sahara", "Yemen",
+                 "Zambia", "Zimbabwe",  "Europe",  "America",  "Africa", "Asia",
+                 "North America",  "South America", "United Nations", "UN"]
 
 P_list = ("city", "town", "village", "settlement", "capital", "cities",
           "villages", "towns", "neighborhood", "neighborhoods")
@@ -138,14 +166,13 @@ def pick_best_result2(results, term, context):
            place['country_code3']]
     return loc
 
-place_cache = {}
-
 
 class PlacesAPI(Resource):
     def __init__(self):
         self.reqparse = reqparse.RequestParser()
         self.reqparse.add_argument('text', type=unicode, location='json')
         self.reqparse.add_argument('country', type=unicode, location='json')
+        self.place_cache = {}
         super(PlacesAPI, self).__init__()
 
     def get(self):
@@ -189,18 +216,14 @@ class PlacesAPI(Resource):
                                                           i['context'])
                     cache_term = '___'.join([searchterm,
                                              ''.join(feature_class)])
-                    # print cache_term
                     try:
-                        t = place_cache[cache_term]
+                        t = self.place_cache[cache_term]
                     except KeyError:
                         t = utilities.query_geonames_featureclass(es_conn,
                                                                   searchterm,
                                                                   country_filter,
                                                                   feature_class)
-                        place_cache[cache_term] = t
-                    # for n in t['hits']['hits']:
-                    #     print n['_source'][u'name']
-                    # print extract_feature_class(t, i['text'], i['context'])
+                        self.place_cache[cache_term] = t
                     loc = pick_best_result2(t, i['text'], i['context'])
                     # loc is a nice format for debugging and looks like
                     # [35.13179, 36.75783, 'searchterm', u'matchname',
