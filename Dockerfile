@@ -16,8 +16,7 @@ RUN pip install -r /src/requirements.txt
 RUN mkdir /home/ubuntu
 WORKDIR /home/ubuntu
 
-RUN wget https://s3.amazonaws.com/mordecai-geo/GoogleNews-vectors-negative300.bin.gz; \
-gunzip GoogleNews-vectors-negative300.bin.gz
+RUN wget https://s3.amazonaws.com/mordecai-geo/GoogleNews-vectors-negative300.bin.gz
 
 RUN git clone https://github.com/mit-nlp/MITIE.git
 WORKDIR /home/ubuntu/MITIE
