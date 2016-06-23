@@ -3,7 +3,8 @@
 mordecai
 =========
 
-Custom-built full text geocoding.
+Custom-built full text geocoding. This software was donated to the Open Event
+Data Alliance by Caerus Associates.
 
 The purpose of mordecai is to accept text and return structured geographic information in return. It does this in several ways:
 
