@@ -22,18 +22,15 @@ mitie_ner_model = parser.get('Locations', 'mitie_ner_model')
 def setup_mitie():
     sys.path.append(mitie_directory)
     ner_model = named_entity_extractor(mitie_ner_model)
-
     return ner_model
 
 
 def setup_es():
     try:
-        if 'Server' in parser.sections():
-            es_ip = parser.get('Server', 'geonames')
-        else:
-            es_ip = os.environ['ELASTIC_PORT_9200_TCP_ADDR']
+        es_ip = parser.get('Server', 'geonames_host')
+        es_port = parser.get('Server', 'geonames_port')
 
-        es_url = 'http://{}:{}/'.format(es_ip, '9200')
+        es_url = 'http://{}:{}/'.format(es_ip, es_port)
         CLIENT = Elasticsearch(es_url)
         S = Search(CLIENT)
 
