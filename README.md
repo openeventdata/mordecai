@@ -3,10 +3,14 @@
 mordecai
 =========
 
-Custom-built full text geocoding. This software was donated to the Open Event
-Data Alliance by Caerus Associates.
+Custom-built full text geocoding. 
 
-The purpose of mordecai is to accept text and return structured geographic information in return. It does this in several ways:
+This software was donated to the Open Event Data Alliance by Caerus Associates.
+See [Releases](https://github.com/openeventdata/mordecai/releases) for the
+2015-2016 production version of Mordecai.
+
+`Mordecai` accepts text and returns structured geographic information extracted
+from it. It does this in several ways:
 
 - It uses [MITIE](https://github.com/mit-nlp/MITIE) to extract placenames from
   the text. In the default configuration, it uses the out-of-the-box MITIE
@@ -40,9 +44,9 @@ specifically RAM, so it should be noted that running this on a small computer
 will be met with suboptimal performance. Our production deployment has the
 Geonames gazetter in an Elasticsearch cluster with a few nodes.
 
-**Please note that many of the required components for mordecai, such as the
+Please note that many of the required components for mordecai, such as the
 word2vec and MITIE models, are rather large so downloading and loading takes
-a while.**
+a while.
 
 Requirements
 ------------
@@ -115,7 +119,7 @@ Mordecai is meant to be easy to customize. There are a few ways to do this.
 Tests
 -----
 
-`mordecai` currently includes a few basic unit tests. To run the tests:
+`mordecai` currently includes a few unit tests. To run the tests:
 
 ```
 cd resources

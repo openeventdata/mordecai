@@ -195,13 +195,11 @@ class PlacesAPI(Resource):
             except ValueError:
                 return json.dumps(locations)
 
-        out = utilities.mitie_context(text, ner_model)
-
-        located = self.process(out, country_filter)
-
+        located = self.process(text, country_filter)
         return located
 
-    def process(self, locs, country_filter):
+    def process(self, text, country_filter):
+        locs = utilities.mitie_context(text, ner_model)
         locations = []
         for i in locs['entities']:
             if i['text'] in country_names:
@@ -219,10 +217,9 @@ class PlacesAPI(Resource):
                     try:
                         t = self.place_cache[cache_term]
                     except KeyError:
-                        t = utilities.query_geonames_featureclass(es_conn,
-                                                                  searchterm,
-                                                                  country_filter,
-                                                                  feature_class)
+                        t = utilities.query_geonames(es_conn,
+                                                     searchterm,
+                                                     country_filter)
                         self.place_cache[cache_term] = t
                     loc = pick_best_result2(t, i['text'], i['context'])
                     # loc is a nice format for debugging and looks like

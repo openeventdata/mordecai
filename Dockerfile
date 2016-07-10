@@ -1,6 +1,6 @@
 FROM ubuntu:14.04
 
-MAINTAINER Casey Hilland <chilland@caerusassociates.com>
+MAINTAINER Andy Halterman <ahalterman0@gmail.com>
 
 RUN echo "deb http://archive.ubuntu.com/ubuntu/ $(lsb_release -sc) main universe" >> /etc/apt/sources.list
 
@@ -26,7 +26,7 @@ RUN tar --no-same-owner -xjf MITIE-models-v0.2.tar.bz2
 RUN mkdir /home/ubuntu/MITIE/mitielib/build
 RUN cd mitielib/build; cmake ..
 RUN cd mitielib/build; cmake --build . --config Release --target install
-RUN pip install git+https://github.com/caerusassociates/mitie-py.git
+RUN pip install git+https://github.com/openeventdata/mitie-py.git
 
 EXPOSE 5000
 
