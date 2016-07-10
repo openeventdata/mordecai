@@ -1,4 +1,3 @@
-from __future__ import print_function
 from __future__ import unicode_literals
 import os
 import sys
@@ -37,7 +36,7 @@ def setup_es():
 
         return S
     except Exception as e:
-        print('Problem parsing config file. {}'.format(e))
+        print 'Problem parsing config file. {}'.format(e)
 
 
 def talk_to_mitie(text, ner_model):
@@ -110,12 +109,13 @@ def read_in_admin1(filepath):
 
 def get_admin1(country_code2, admin1_code, admin1_dict):
     lookup_key = ".".join([country_code2, admin1_code])
-    #print lookup_key
+    print lookup_key
     try:
         admin1_name = admin1_dict[lookup_key]
         return admin1_name
     except KeyError:
         m = "No admin code found for country {} and code {}".format(country_code2, admin1_code)
+        print m
         return "NA"
 
 
