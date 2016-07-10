@@ -3,6 +3,7 @@ from __future__ import unicode_literals
 import os
 import sys
 import glob
+import json
 from mitie import *
 from elasticsearch_dsl import Search
 from ConfigParser import ConfigParser
@@ -101,6 +102,21 @@ def mitie_context(text, ner_model):
         out.append({u'tag': unicode(tag), u'text': entity_text, u'score': score,
                     u'context': context})
     return {"entities": out}
+
+def read_in_admin1(filepath):
+    with open(filepath) as admin1file:
+        admin1_dict = json.loads(admin1file.read())
+    return admin1_dict
+
+def get_admin1(country_code2, admin1_code, admin1_dict):
+    lookup_key = ".".join([country_code2, admin1_code])
+    #print lookup_key
+    try:
+        admin1_name = admin1_dict[lookup_key]
+        return admin1_name
+    except KeyError:
+        m = "No admin code found for country {} and code {}".format(country_code2, admin1_code)
+        return "NA"
 
 
 def query_geonames(conn, placename, country_filter):

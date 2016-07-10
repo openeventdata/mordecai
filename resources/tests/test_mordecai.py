@@ -1,11 +1,12 @@
 import os
 import sys
 import glob
+import json
 from ConfigParser import ConfigParser
 from mitie import named_entity_extractor
 from ..country import CountryAPI
 from ..places import PlacesAPI
-from ..utilities import mitie_context, setup_es, query_geonames
+from ..utilities import mitie_context, setup_es, query_geonames, read_in_admin1, get_admin1
 
 def test_places_api_one():
     if os.environ.get('CI'):
@@ -17,6 +18,27 @@ def test_places_api_one():
         result = a.process(locs, ['CAN'])
         gold = [{u'lat': 49.25014, u'searchterm': 'Ontario', u'lon': -84.49983, u'countrycode': u'CAN', u'placename': u'Ontario'}]
         assert result == gold
+
+def test_read_in_admin1():
+    __location__ = os.path.realpath(os.path.join(os.getcwd(),
+                                    os.path.dirname(__file__)))
+    admin1_file = glob.glob(os.path.join(__location__, '../data/admin1CodesASCII.json'))
+    t = read_in_admin1(admin1_file[0])
+    assert t[u'ML.03'] == u'Kayes'
+
+def test_get_admin1():
+    __location__ = os.path.realpath(os.path.join(os.getcwd(),
+                       os.path.dirname(__file__)))
+    admin1_file = glob.glob(os.path.join(__location__, '../data/admin1CodesASCII.json'))
+    admin1_dict = read_in_admin1(admin1_file[0])
+    assert "Berlin" == get_admin1("DE", "16", admin1_dict)
+
+def test_get_admin1_none():
+    __location__ = os.path.realpath(os.path.join(os.getcwd(),
+                       os.path.dirname(__file__)))
+    admin1_file = glob.glob(os.path.join(__location__, '../data/admin1CodesASCII.json'))
+    admin1_dict = read_in_admin1(admin1_file[0])
+    assert "NA" == get_admin1("fakeplace", "16", admin1_dict)
 
 def test_query_geonames():
     conn = setup_es()
