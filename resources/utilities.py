@@ -24,20 +24,25 @@ def setup_mitie():
     ner_model = named_entity_extractor(mitie_ner_model)
     return ner_model
 
-
 def setup_es():
     try:
-        es_ip = parser.get('Server', 'geonames_host')
-        es_port = parser.get('Server', 'geonames_port')
-
+        if 'Server' in parser.sections():
+            print "Using config file for geonames/ES info"
+            # Using config file for ES host and port
+            es_ip = parser.get('Server', 'geonames_host')
+            es_port = parser.get('Server', 'geonames_port')
+        else:
+            print "Using default Docker info for ES/geonames"
+            # If no Server config, assume linked container
+            es_ip = "elastic"
+            es_port = '9200'
         es_url = 'http://{}:{}/'.format(es_ip, es_port)
+        print es_url
         CLIENT = Elasticsearch(es_url)
-        S = Search(CLIENT)
-
+        S = Search(CLIENT, index="geonames")
         return S
     except Exception as e:
         print 'Problem parsing config file. {}'.format(e)
-
 
 def talk_to_mitie(text, ner_model):
     # Function that accepts text to MITIE and gets entities and HTML in response
@@ -120,7 +125,7 @@ def get_admin1(country_code2, admin1_code, admin1_dict):
 
 
 def query_geonames(conn, placename, country_filter):
-    country_lower = [x.lower() for x in country_filter]
+    country_lower = [x.lower() for x in [country_filter]]
     q = MultiMatch(query=placename, fields=['asciiname^5', 'alternativenames'])
     res = conn.filter('term', country_code3=country_lower).query(q).execute()
     out = {'hits': {'hits': []}}

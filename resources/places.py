@@ -21,6 +21,11 @@ from flask.ext.httpauth import HTTPBasicAuth
 from flask.ext.restful import Resource, reqparse
 from flask.ext.restful.representations.json import output_json
 
+import requests
+from elasticsearch_dsl import Search
+from elasticsearch import Elasticsearch
+from elasticsearch_dsl.query import MultiMatch
+
 output_json.func_globals['settings'] = {'ensure_ascii': False,
                                         'encoding': 'utf8'}
 
@@ -162,14 +167,13 @@ class PlacesAPI(Resource):
         super(PlacesAPI, self).__init__()
 
     def get(self):
-        return """
-    This service expects a POST in the form '{"text":"On 12 August, the BBC
-    reported that..."}'
+        return """This service expects a POST in the form '{"text":"On 12 August, the BBC
+reported that..."}'
 
-    It will return the places mentioned in the text along with their latitudes
-    and longitudes in the form: {"lat":34.567, "lon":12.345,
-    "seachterm":"Baghdad", "placename":"Baghdad", "countrycode":"IRQ"}
-    """
+It will return the places mentioned in the text along with their latitudes
+and longitudes in the form: {"lat":34.567, "lon":12.345,
+"seachterm":"Baghdad", "placename":"Baghdad", "countrycode":"IRQ"}
+"""
 
     def post(self):
         args = self.reqparse.parse_args()
@@ -187,6 +191,9 @@ class PlacesAPI(Resource):
     def process(self, text, country_filter):
         locs = utilities.mitie_context(text, ner_model)
         locations = []
+        q = MultiMatch(query="Berlin", fields=['asciiname^5', 'alternativenames'])
+        country_lower = "DEU"
+        #print es_conn.filter('term', country_code3=country_lower).query(q).execute()
         for i in locs['entities']:
             if i['text'] in country_names:
                 print " (Country/blacklist. Skipping...)"
@@ -228,10 +235,11 @@ class PlacesAPI(Resource):
         context = set([x.lower() for x in context])
         place = check_names(results, term)
         if not place:
-            print "No nothing"
+            print "No exact match"
             try:
                 place = results[0]
             except IndexError:
+                print "IndexError on results[0]"
                 return []
         coords = place['coordinates'].split(",")
         admin1_name = utilities.get_admin1(place['country_code2'], place['admin1_code'], self.admin1_dict)
