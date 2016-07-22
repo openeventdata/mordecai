@@ -24,9 +24,10 @@ RUN cd mitielib/build; cmake --build . --config Release --target install
 
 RUN easy_install pip
 RUN pip install --upgrade pip
-ADD . /src
-RUN pip install -r /src/requirements.txt
 RUN pip install git+https://github.com/openeventdata/mitie-py.git
+COPY requirements.txt /tmp/
+RUN pip install -r /tmp/requirements.txt
+ADD . /src
 
 EXPOSE 5000
 
