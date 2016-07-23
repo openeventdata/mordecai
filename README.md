@@ -30,30 +30,40 @@ It runs as a Flask-RESTful service.
 Installation
 ------------
 
-Standing up the service is as simple as installing
-[docker](https://www.docker.com/) and
-[docker-compose](https://docs.docker.com/compose/). If you're using Ubuntu,
+Mordecai is built as a series of [Docker](https://www.docker.com/) containers. You'll need to install Docker and and
+[docker-compose](https://docs.docker.com/compose/) to be able to use it. If you're using Ubuntu,
 [this gist](https://gist.github.com/wdullaer/f1af16bd7e970389bad3) is a good
-place to start. Once these components are installed, the service is started by
-running `sudo docker-compose up` from inside the `mordecai` directory. To run the
-service in the background use `docker-compose up -d`. This will pull the
-Elasticsearch docker image with the Geonames gazetter already stored as an
-index. It will also build the `mordecai` docker image and link this to the
-Elasticsearch image. Elasticsearch requires a fair amount of resources,
-specifically RAM, so it should be noted that running this on a small computer
-will be met with suboptimal performance. Our production deployment has the
-Geonames gazetter in an Elasticsearch cluster with a few nodes.
+place to start. 
 
-Please note that many of the required components for mordecai, such as the
-word2vec and MITIE models, are rather large so downloading and loading takes
-a while.
+`Mordecai`'s Geonames gazeteer can either be run locally alongside Mordecai or on a remote server.
+. Elasticsearch/Geonames requires a large amount of memory, so running it
+locally may be okay for small projects (if your machine has enough RAM), but is
+not recommended for production. The config file's default settings assume it is
+running locally. Uncomment and change those lines if your index is elsewhere on
+the network. To download and start the Geonames Elasticsearch container
+locally, run
 
-Requirements
-------------
+```
+sudo docker pull openeventdata/es-geonames
+sudo docker run -d -p 9200:9200 --name=elastic openeventdata/es-geonames
+```
 
-The software currently assumes that an Elasticsearch instance is running with
-the Geonames gazetteer as the index. This should be taken care of if you used
-`docker-compose`.
+This pulls a pre-built image and starts it running with an open port and defined name.
+
+To start `Mordecai` itself, from inside this directory, run
+
+```
+sudo docker build -t mordecai .
+sudo docker run -d -p 5000:5000 --link elastic:elastic mordecai
+```
+
+The `--link` flag connects `Mordecai` to the elastic image running locally.
+Leave off if it's running on a different server.
+
+Please note that many of the required components for `mordecai`, such as the
+word2vec and MITIE models, are rather large so downloading and starting the
+service takes a while.
+
 
 Endpoints
 ---------
@@ -125,3 +135,8 @@ Tests
 cd resources
 py.test
 ```
+
+The tests currently require access to a running Elastic/Geonames service to
+complete. If this service is running locally in a Docker container, uncomment
+the `Server` section in the config file so host = `localhost` and port =
+`9200`.

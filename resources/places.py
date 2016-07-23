@@ -179,21 +179,23 @@ and longitudes in the form: {"lat":34.567, "lon":12.345,
         args = self.reqparse.parse_args()
         text = args['text']
         country_filter = args['country']
+        print country_filter
         if not country_filter:
             try:
                 country_filter = CountryAPI().process(text)
             except ValueError:
                 return json.dumps(locations)
-
+        if not isinstance(country_filter, list):
+            # this is an ugly hack. The process expects a list, but
+            # CountryAPI returns a string.
+            print "Listifying country_filter"
+            country_filter = [country_filter]
         located = self.process(text, country_filter)
         return located
 
     def process(self, text, country_filter):
         locs = utilities.mitie_context(text, ner_model)
         locations = []
-        q = MultiMatch(query="Berlin", fields=['asciiname^5', 'alternativenames'])
-        country_lower = "DEU"
-        #print es_conn.filter('term', country_code3=country_lower).query(q).execute()
         for i in locs['entities']:
             if i['text'] in country_names:
                 print " (Country/blacklist. Skipping...)"

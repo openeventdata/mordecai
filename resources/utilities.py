@@ -37,7 +37,6 @@ def setup_es():
             es_ip = "elastic"
             es_port = '9200'
         es_url = 'http://{}:{}/'.format(es_ip, es_port)
-        print es_url
         CLIENT = Elasticsearch(es_url)
         S = Search(CLIENT, index="geonames")
         return S
@@ -114,7 +113,6 @@ def read_in_admin1(filepath):
 
 def get_admin1(country_code2, admin1_code, admin1_dict):
     lookup_key = ".".join([country_code2, admin1_code])
-    print lookup_key
     try:
         admin1_name = admin1_dict[lookup_key]
         return admin1_name
@@ -125,9 +123,8 @@ def get_admin1(country_code2, admin1_code, admin1_dict):
 
 
 def query_geonames(conn, placename, country_filter):
-    country_lower = [x.lower() for x in [country_filter]]
     q = MultiMatch(query=placename, fields=['asciiname^5', 'alternativenames'])
-    res = conn.filter('term', country_code3=country_lower).query(q).execute()
+    res = conn.filter('term', country_code3=country_filter).query(q).execute()
     out = {'hits': {'hits': []}}
     keys = [u'admin1_code', u'admin2_code', u'admin3_code', u'admin4_code',
             u'alternativenames', u'asciiname', u'cc2', u'coordinates',
@@ -144,10 +141,8 @@ def query_geonames(conn, placename, country_filter):
 
 
 def query_geonames_featureclass(conn, placename, country_filter, feature_class):
-    country_lower = [x.lower() for x in [country_filter]]
-    feature_lower = [x.lower() for x in feature_class]
     q = MultiMatch(query=placename, fields=['asciiname^5', 'alternativenames'])
-    res = conn.filter('term', country_code3=country_lower).filter('term', feature_class=feature_lower).query(q).execute()
+    res = conn.filter('term', country_code3=country_filter).filter('term', feature_class=feature_class).query(q).execute()
     out = {'hits': {'hits': []}}
     keys = [u'admin1_code', u'admin2_code', u'admin3_code', u'admin4_code',
             u'alternativenames', u'asciiname', u'cc2', u'coordinates',
