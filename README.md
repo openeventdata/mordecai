@@ -76,9 +76,9 @@ Endpoints
 
 2. `/places`
 
-    In: text, list of country codes
+    In: text, country code
 
-    Out: list of dictionaries of placenames and lat/lon in text. The keys are "lat", "lon", "placename", "searchterm", and "countrycode". 
+    Out: list of dictionaries of placenames and lat/lon in text. The keys are "lat", "lon", "placename", "searchterm", "admin1", and "countrycode". 
 
 
 4. `/osc`

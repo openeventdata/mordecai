@@ -123,8 +123,9 @@ def get_admin1(country_code2, admin1_code, admin1_dict):
 
 
 def query_geonames(conn, placename, country_filter):
+    country_filter = country_filter[0]
     q = MultiMatch(query=placename, fields=['asciiname^5', 'alternativenames'])
-    res = conn.filter('term', country_code3=country_filter).query(q).execute()
+    res = conn.query('match', country_code3=country_filter).query(q).execute()
     out = {'hits': {'hits': []}}
     keys = [u'admin1_code', u'admin2_code', u'admin3_code', u'admin4_code',
             u'alternativenames', u'asciiname', u'cc2', u'coordinates',
