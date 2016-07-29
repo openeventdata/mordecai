@@ -21,6 +21,11 @@ from flask.ext.httpauth import HTTPBasicAuth
 from flask.ext.restful import Resource, reqparse
 from flask.ext.restful.representations.json import output_json
 
+import requests
+from elasticsearch_dsl import Search
+from elasticsearch import Elasticsearch
+from elasticsearch_dsl.query import MultiMatch
+
 output_json.func_globals['settings'] = {'ensure_ascii': False,
                                         'encoding': 'utf8'}
 
@@ -149,52 +154,42 @@ def extract_feature_class(results, term, context):
     else:
         return ['A', 'P', 'S']
 
-
-def pick_best_result2(results, term, context):
-    results = results['hits']['hits']
-    context = set([x.lower() for x in context])
-    place = check_names(results, term)
-    if not place:
-        print "No nothing"
-        try:
-            place = results[0]
-        except IndexError:
-            return []
-    coords = place['coordinates'].split(",")
-    loc = [float(coords[0]), float(coords[1]), term,
-           place['asciiname'], place['feature_class'],
-           place['country_code3']]
-    return loc
-
-
 class PlacesAPI(Resource):
     def __init__(self):
         self.reqparse = reqparse.RequestParser()
         self.reqparse.add_argument('text', type=unicode, location='json')
         self.reqparse.add_argument('country', type=unicode, location='json')
+        __location__ = os.path.realpath(os.path.join(os.getcwd(),
+                               os.path.dirname(__file__)))
+        admin1_file = glob.glob(os.path.join(__location__, 'data/admin1CodesASCII.json'))
+        self.admin1_dict = utilities.read_in_admin1(admin1_file[0])
         self.place_cache = {}
         super(PlacesAPI, self).__init__()
 
     def get(self):
-        return """
-    This service expects a POST in the form '{"text":"On 12 August, the BBC
-    reported that..."}'
+        return """This service expects a POST in the form '{"text":"On 12 August, the BBC
+reported that..."}'
 
-    It will return the places mentioned in the text along with their latitudes
-    and longitudes in the form: {"lat":34.567, "lon":12.345,
-    "seachterm":"Baghdad", "placename":"Baghdad", "countrycode":"IRQ"}
-    """
+It will return the places mentioned in the text along with their latitudes
+and longitudes in the form: {"lat":34.567, "lon":12.345,
+"seachterm":"Baghdad", "placename":"Baghdad", "countrycode":"IRQ"}
+"""
 
     def post(self):
         args = self.reqparse.parse_args()
         text = args['text']
         country_filter = args['country']
+        print country_filter
         if not country_filter:
             try:
                 country_filter = CountryAPI().process(text)
             except ValueError:
                 return json.dumps(locations)
-
+        if not isinstance(country_filter, list):
+            # this is an ugly hack. The process expects a list, but
+            # CountryAPI returns a string.
+            print "Listifying country_filter"
+            country_filter = [country_filter]
         located = self.process(text, country_filter)
         return located
 
@@ -221,17 +216,39 @@ class PlacesAPI(Resource):
                                                      searchterm,
                                                      country_filter)
                         self.place_cache[cache_term] = t
-                    loc = pick_best_result2(t, i['text'], i['context'])
+                    loc = self.pick_best_result(t, i['text'], i['context'])
                     # loc is a nice format for debugging and looks like
                     # [35.13179, 36.75783, 'searchterm', u'matchname',
-                    # u'feature_class', u'country_code3']:
+                    # u'feature_class', u'country_code3', u'admin1']:
                     if loc:
                         formatted_loc = {"lat": loc[0], "lon": loc[1],
                                          "searchterm": loc[2],
                                          "placename": loc[3],
-                                         "countrycode": loc[5]}
+                                         "countrycode": loc[5],
+                                         "admin1" : loc[6]}
                         print('Formatted loc: {}'.format(formatted_loc))
                         locations.append(formatted_loc)
                 except Exception as e:
                     print e
         return locations
+
+    def pick_best_result(self, results, term, context):
+        results = results['hits']['hits']
+        context = set([x.lower() for x in context])
+        place = check_names(results, term)
+        if not place:
+            print "No exact match"
+            try:
+                place = results[0]
+            except IndexError:
+                print "IndexError on results[0]"
+                return []
+        coords = place['coordinates'].split(",")
+        admin1_name = utilities.get_admin1(place['country_code2'], place['admin1_code'], self.admin1_dict)
+        loc = [float(coords[0]), float(coords[1]), term,
+               place['name'], place['feature_class'],
+               place['country_code3'], admin1_name]
+        return loc
+    
+    
+    

@@ -6,12 +6,7 @@ RUN echo "deb http://archive.ubuntu.com/ubuntu/ $(lsb_release -sc) main universe
 
 RUN apt-get update && apt-get install -y git build-essential wget tar \
 python-setuptools python-dev gfortran libopenblas-dev liblapack-dev cmake \
-python-numpy python-scipy
-
-RUN easy_install pip
-RUN pip install --upgrade pip
-ADD . /src
-RUN pip install -r /src/requirements.txt
+python-numpy python-scipy curl
 
 RUN mkdir /home/ubuntu
 WORKDIR /home/ubuntu
@@ -26,7 +21,13 @@ RUN tar --no-same-owner -xjf MITIE-models-v0.2.tar.bz2
 RUN mkdir /home/ubuntu/MITIE/mitielib/build
 RUN cd mitielib/build; cmake ..
 RUN cd mitielib/build; cmake --build . --config Release --target install
+
+RUN easy_install pip
+RUN pip install --upgrade pip
 RUN pip install git+https://github.com/openeventdata/mitie-py.git
+COPY requirements.txt /tmp/
+RUN pip install -r /tmp/requirements.txt
+ADD . /src
 
 EXPOSE 5000
 
