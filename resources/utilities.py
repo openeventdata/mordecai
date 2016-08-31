@@ -3,7 +3,7 @@ import os
 import sys
 import glob
 import json
-from mitie import *
+import mitie
 from elasticsearch_dsl import Search
 from ConfigParser import ConfigParser
 from elasticsearch import Elasticsearch
@@ -19,9 +19,9 @@ mitie_directory = parser.get('Locations', 'mitie_directory')
 mitie_ner_model = parser.get('Locations', 'mitie_ner_model')
 
 
-def setup_mitie():
+def setup_mitie(mitie_directory, mitie_ner_model):
     sys.path.append(mitie_directory)
-    ner_model = named_entity_extractor(mitie_ner_model)
+    ner_model = mitie.named_entity_extractor(mitie_ner_model)
     return ner_model
 
 def setup_es():
@@ -46,7 +46,7 @@ def setup_es():
 def talk_to_mitie(text, ner_model):
     # Function that accepts text to MITIE and gets entities and HTML in response
     text = text.encode("utf-8")
-    tokens = tokenize(text)
+    tokens = mitie.tokenize(text)
     tokens.append(' x ')
     # eventually, handle different NER models.
     entities = ner_model.extract_entities(tokens)
@@ -79,7 +79,7 @@ def mitie_context(text, ner_model):
     # Function that accepts text to MITIE and returns entities
     # (and +/- 3 words of context)
     text = text.encode("utf-8")
-    tokens = tokenize(text)
+    tokens = mitie.tokenize(text)
     # eventually, handle different NER models.
     entities = ner_model.extract_entities(tokens)
     out = []
