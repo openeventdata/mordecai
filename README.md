@@ -3,7 +3,7 @@
 mordecai
 =========
 
-Custom-built full text geocoding. 
+Custom-built full text geoparsing.
 
 This software was donated to the Open Event Data Alliance by Caerus Associates.
 See [Releases](https://github.com/openeventdata/mordecai/releases) for the
@@ -27,43 +27,63 @@ from it. It does this in several ways:
 
 It runs as a Flask-RESTful service.
 
-Installation
+Simple Installation
 ------------
 
-Mordecai is built as a series of [Docker](https://www.docker.com/) containers. You'll need to install Docker and and
-[docker-compose](https://docs.docker.com/compose/) to be able to use it. If you're using Ubuntu,
-[this gist](https://gist.github.com/wdullaer/f1af16bd7e970389bad3) is a good
-place to start. 
+Mordecai is built as a series of [Docker](https://www.docker.com/) containers,
+which means that you won't need to install any software except Docker to use
+it. You can find instructions for installing Docker on your operating system
+[here](https://docs.docker.com/engine/installation/).
 
-`Mordecai`'s Geonames gazeteer can either be run locally alongside Mordecai or on a remote server.
-. Elasticsearch/Geonames requires a large amount of memory, so running it
-locally may be okay for small projects (if your machine has enough RAM), but is
-not recommended for production. The config file's default settings assume it is
-running locally. Uncomment and change those lines if your index is elsewhere on
-the network. To download and start the Geonames Elasticsearch container
-locally, run
+To start Mordecai locally, run these four commands:
+
 
 ```
 sudo docker pull openeventdata/es-geonames
 sudo docker run -d -p 9200:9200 --name=elastic openeventdata/es-geonames
-```
-
-This pulls a pre-built image and starts it running with an open port and defined name.
-
-To start `Mordecai` itself, from inside this directory, run
-
-```
 sudo docker build -t mordecai .
 sudo docker run -d -p 5000:5000 --link elastic:elastic mordecai
 ```
 
-The `--link` flag connects `Mordecai` to the elastic image running locally.
-Leave off if it's running on a different server.
+### Explanation:
 
-Please note that many of the required components for `mordecai`, such as the
-word2vec and MITIE models, are rather large so downloading and starting the
-service takes a while.
+The first line downloads a pre-built image of a Geonames Elasticsearch
+container. This container holds the geographic gazetteer that Mordecai uses to
+associate place names with latitudes and longitudes.
 
+Line 2 starts that container running locally on port 9200 with the name `elastic`.
+
+Line 3 builds the main Mordecai image using the commands in the `Dockerfile`. 
+
+Line 4 starts the Mordecai container and tells it to connect to our already
+running `elastic` container with the `--link elastic:elastic` option.. Mordecai
+will be acessible on port 5000. By default, Docker runs on 0.0.0.0, so any
+machine on your network will be able to access it.
+
+**NOTE**: Many of the required components for `mordecai`, including the
+word2vec and MITIE models, are very large so downloading and starting the
+service takes a while. You should also ensure that you have approximately 16
+gigs of RAM available.
+
+
+Advanced Configuration
+-----------------------
+
+`Mordecai`'s Geonames gazeteer can either be run locally alongside Mordecai or
+on a remote server. Elasticsearch/Geonames requires a large amount of memory,
+so running it locally may be okay for small projects (if your machine has
+enough RAM), but is not recommended for production. 
+
+If you're running elasticsearch/geonames on a different server, you'll need to
+make two change:
+
+First, the config file's default settings assume that `es-geonames` is running
+locally. If you're running it on a separate server, uncomment and change the
+`Server` section of the config file and update with the IP and port of your
+running geonames/elasticsearch index.
+
+Second, leave out the `--link elastic:elastic` portion when you call `docker
+run` on Mordecai.
 
 Endpoints
 ---------
@@ -140,3 +160,11 @@ The tests currently require access to a running Elastic/Geonames service to
 complete. If this service is running locally in a Docker container, uncomment
 the `Server` section in the config file so host = `localhost` and port =
 `9200`.
+
+Contributing
+------------
+
+Contributions via pull requests are welcome. Please make sure that changes
+pass the unit tests. Any bugs and issues can be reported
+[here](https://github.com/openeventdata/mordecai/issues).
+
