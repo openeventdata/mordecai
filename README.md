@@ -3,29 +3,62 @@
 mordecai
 =========
 
-Custom-built full text geoparsing.
+Custom-built full text geoparsing. Extract all the place names from a piece of
+text, resolve them to the correct place, and return their coordinates and
+structured geographic information.
 
 This software was donated to the Open Event Data Alliance by Caerus Associates.
 See [Releases](https://github.com/openeventdata/mordecai/releases) for the
 2015-2016 production version of Mordecai.
 
+Why Mordecai?
+------------
+
+Mordecai was developed to address several specific needs that previous text
+geoparsing software did not. These specific requirements include:
+
+- Overcoming a strong preference for US locations in existing geoparsing
+  software. Mordecai makes determining the country focus of the text should
+  be a separate and accurate step in the geoparsing process.
+- Ease of setup and use. The system should be installable and usable by people
+  with only basic programming skills. Mordecai does this by running as a Docker
+  + REST service, hiding the complexity of installation from end users.
+- Ease of modification. This software was developed to be used primarily by
+  social science researchers, who tend to be much more familiar with Python
+  than Java. Mordecai makes the key steps in the geoparsing process (named entity
+  extraction, place name resolution, gazetteer lookup) exposed and easily
+  changed.
+- Language-agnostic architecture. The only language-specific components of
+  Mordecai are the named entity extraction model and the word2vec model. Both
+  of these can be easily swapped out, giving researchers the ability to
+  geoparse non-English text, which is a capability that has not existed in open
+  source software until now.
+
+How does it work?
+-----------------
+
 `Mordecai` accepts text and returns structured geographic information extracted
 from it. It does this in several ways:
 
-- It uses [MITIE](https://github.com/mit-nlp/MITIE) to extract placenames from
-  the text. In the default configuration, it uses the out-of-the-box MITIE
-  models, but these can be changed out for custom models when needed.
+- It uses [MITIE](https://github.com/mit-nlp/MITIE) named entity recognition to
+  extract placenames from the text. In the default configuration, it uses the
+  out-of-the-box MITIE models, but these can be changed out for custom models
+  when needed.
 
 - It uses [word2vec](https://code.google.com/p/word2vec/)'s models, with
-  [gensim](https://radimrehurek.com/gensim/)'s awesome Python wrapper, to infer
-  the country focus of an article given the word vectors of the article's placenames. 
+  [gensim](https://radimrehurek.com/gensim/)'s Python implementation, to infer
+  the country focus of an article given the word vectors of the article's
+  placenames.  The word2vec vectors of all the place names extracted from the
+  text are averaged, and this average vector is compared to the vectors for all
+  country names. The closest country is used as the focus country of the piece of
+  text.
 
 - It uses a country-filtered search of the [geonames](http://www.geonames.org/)
   gazetteer in [Elasticsearch](https://www.elastic.co/products/elasticsearch)
-  (with some custom logic) to find the lat/lon for each place mentioned in the
-  text.
+  (with some custom logic) to find the latitude and longitude for each place
+  mentioned in the text.
 
-It runs as a Flask-RESTful service.
+It runs as a Flask-RESTful service inside a Docker container.
 
 Simple Installation
 ------------
@@ -36,7 +69,6 @@ it. You can find instructions for installing Docker on your operating system
 [here](https://docs.docker.com/engine/installation/).
 
 To start Mordecai locally, run these four commands:
-
 
 ```
 sudo docker pull openeventdata/es-geonames
@@ -57,7 +89,7 @@ Line 3 builds the main Mordecai image using the commands in the `Dockerfile`.
 
 Line 4 starts the Mordecai container and tells it to connect to our already
 running `elastic` container with the `--link elastic:elastic` option.. Mordecai
-will be acessible on port 5000. By default, Docker runs on 0.0.0.0, so any
+will be accessible on port 5000. By default, Docker runs on 0.0.0.0, so any
 machine on your network will be able to access it.
 
 **NOTE**: Many of the required components for `mordecai`, including the
@@ -165,6 +197,6 @@ Contributing
 ------------
 
 Contributions via pull requests are welcome. Please make sure that changes
-pass the unit tests. Any bugs and issues can be reported
-[here](https://github.com/openeventdata/mordecai/issues).
+pass the unit tests. Any bugs and problems can be reported
+on the repo's [issues page](https://github.com/openeventdata/mordecai/issues).
 
