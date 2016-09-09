@@ -21,10 +21,11 @@ from flask.ext.httpauth import HTTPBasicAuth
 from flask.ext.restful import Resource, reqparse
 from flask.ext.restful.representations.json import output_json
 
-import requests
-from elasticsearch_dsl import Search
-from elasticsearch import Elasticsearch
-from elasticsearch_dsl.query import MultiMatch
+# for debugging
+#import requests
+#from elasticsearch_dsl import Search
+#from elasticsearch import Elasticsearch
+#from elasticsearch_dsl.query import MultiMatch
 
 output_json.func_globals['settings'] = {'ensure_ascii': False,
                                         'encoding': 'utf8'}
