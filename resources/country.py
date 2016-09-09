@@ -125,7 +125,8 @@ stopword_country_names = {"Afghanistan":"AFG", "Åland Islands":"ALA", "Albania"
     "Western_Sahara":"ESH", "Yemen":"YEM", "Zambia":"ZMB", "Zimbabwe":"ZWE"}
 
 #NER model for MITIE
-ner_model = utilities.setup_mitie()
+mitie_directory = parser.get('Locations', 'mitie_directory')
+ner_model = utilities.setup_mitie(mitie_directory)
 
 #Build the index for word2vec
 prebuilt = Word2Vec.load_word2vec_format(word2vec_model, binary=True)

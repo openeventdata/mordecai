@@ -21,10 +21,11 @@ from flask.ext.httpauth import HTTPBasicAuth
 from flask.ext.restful import Resource, reqparse
 from flask.ext.restful.representations.json import output_json
 
-import requests
-from elasticsearch_dsl import Search
-from elasticsearch import Elasticsearch
-from elasticsearch_dsl.query import MultiMatch
+# for debugging
+#import requests
+#from elasticsearch_dsl import Search
+#from elasticsearch import Elasticsearch
+#from elasticsearch_dsl.query import MultiMatch
 
 output_json.func_globals['settings'] = {'ensure_ascii': False,
                                         'encoding': 'utf8'}
@@ -57,7 +58,7 @@ sys.path.append(mitie_directory)
 
 # Setup connection for elasticsearch
 es_conn = utilities.setup_es()
-ner_model = utilities.setup_mitie()
+ner_model = utilities.setup_mitie(mitie_directory)
 
 
 country_names = ["Afghanistan", "Åland Islands", "Albania", "Algeria",
@@ -138,13 +139,22 @@ A_list = ("governorate", "province", "muhafazat")
 
 
 def check_names(results, term):
-    # Is there an exact match?
+    """ Check for an exact string match between search term and the results terms. """
     for r in results:
         if r['name'].lower() == term.lower():
             return r
 
 
 def extract_feature_class(results, term, context):
+    """Guess at geographic feature class based on neighbor words.
+    
+    Geonames objects include information on the geographic feature types.
+    This function looks at the neighboring words around the location and checks
+    if they're in the defined lists above to tell the query whether to look for a 
+    place ("P") or administrative area ("A").
+
+    This is currently not used because it was causing crappy results.
+    """
     context = set([x.lower() for x in context])
 
     if context.intersection(P_list):
@@ -167,6 +177,11 @@ class PlacesAPI(Resource):
         super(PlacesAPI, self).__init__()
 
     def get(self):
+        """
+        Let users send an HTTP GET request to this endpoint to make sure it's up and 
+        give some guidance on how it works.
+        """
+
         return """This service expects a POST in the form '{"text":"On 12 August, the BBC
 reported that..."}'
 
@@ -176,6 +191,13 @@ and longitudes in the form: {"lat":34.567, "lon":12.345,
 """
 
     def post(self):
+        """
+        A POST wrapper around the main process function defined below. 
+        
+        It gets `text` and `country` out of the POST request. If country 
+        isn't in the request, call /country to get it. It listifies the country_filter
+        because the elasticsearch request needs it in that format.
+        """
         args = self.reqparse.parse_args()
         text = args['text']
         country_filter = args['country']
@@ -194,6 +216,27 @@ and longitudes in the form: {"lat":34.567, "lon":12.345,
         return located
 
     def process(self, text, country_filter):
+        """
+        The main processing function that extracts place names from text, does the 
+        country-limited search, and returns the findings.
+
+        Parameters
+        ----------
+        self: the Flask API
+
+        text: A unicode string
+
+        country_filter: A list containing an ISO 3 character country code
+
+        Returns
+        -------
+
+        locations: a list of locations. Each location is a dictionary with keys
+        lat, lon, searchterm, placename, countrycode, admin1.
+
+        admin1 is the name of the state/region/governorate/province that the location is in.
+        """
+
         locs = utilities.mitie_context(text, ner_model)
         locations = []
         for i in locs['entities']:
@@ -233,6 +276,25 @@ and longitudes in the form: {"lat":34.567, "lon":12.345,
         return locations
 
     def pick_best_result(self, results, term, context):
+        """
+        From the geonames/elasticsearch results, pick the single best match.
+
+        Parameters
+        ---------
+        self:
+
+        results: the results returned by the query to elasticsearch
+
+        term: the MITIE-extracted named entity search term. (Used for checking exact matches)
+
+        context: the list of neighboring words to help figure out the type of place
+
+        Returns
+        ---------
+        loc: list
+             lat, lon, term, placename, place type (A, P, etc. see geonames docs), 
+             countrycode (ISO 3 character), administrative region name.
+        """
         results = results['hits']['hits']
         context = set([x.lower() for x in context])
         place = check_names(results, term)
