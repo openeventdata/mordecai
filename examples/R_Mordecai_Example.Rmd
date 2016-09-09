@@ -1,0 +1,117 @@
+---
+title: "Using Mordecai Geoparsing In R"
+author: "Andy Halterman"
+output: html_document
+references:
+- id: hrtexts
+  title: "Human Rights Texts: Converting Human Rights Primary Source Documents into Data"
+  author:
+  - family: Fariss
+    given: Christopher J.
+  - family: Linder
+    given: Fridolin J.
+  - family: Crabtree
+    given: Charles D.
+  - family: Biek
+    given: Megan A.
+  - family: Ross
+    given: Ana-Sophia M.
+  - family: Kaur
+    given: Taranamol
+  - family: Tsai
+    given: Michael
+  year: 2015
+  DOI: 10.7910/DVN/IAH8OY
+  url : "http://dx.doi.org/10.7910/DVN/IAH8OY"
+  publisher: Harvard Dataverse
+---
+
+One of the advantages of Mordecai's HTTP-based interface is that any language
+that can make HTTP POST requests can interact with it without needed special
+Mordecai packages or code. This example demonstrates how to read in a text file,
+have Mordecai geolocate it to the country level, and then do a full geoparse
+with Mordecai. It then shows how to format the returned data and easily plot it
+on a map.
+
+For this demonstration, we need `httr` for handing the request to Mordecai,
+`dplyr` for formatting the result, and `leaflet` for making a quick interactive
+map of the results.
+
+```{r message = FALSE, warning=FALSE}
+library(httr)
+library(dplyr)
+library(leaflet)
+```
+
+Set the endpoints for the `country` and `places` endpoints. Here, Mordecai is
+running locally.
+
+```{r}
+country_url <- "http://localhost:5000/country"
+places_url <- "http://localhost:5000/places"
+```
+
+We can then make a GET request to Mordecai to make sure it's up and running and
+that we can talk to it.
+
+```{r}
+t <- GET(url = country_url, as = "parsed")
+content(t)
+```
+
+This response lets us know that it is and gives us some guidance on what data
+format it expects.
+
+First, let's test Mordecai's country coding capability. We can read in one of
+the human rights texts prepared by @hrtexts...
+
+```{r}
+bol <- paste(readLines("BOL_2009_Amnesty_International.txt"), collapse = " ")
+```
+
+...and then POST it to the `country` endpoint.
+
+```{r}
+bol_country <- POST(url = country_url, 
+                   as = "parsed", 
+                   body = list("text" = bol), 
+                   encode = "json")
+
+content(bol_country)
+```
+
+Thankfully, since this is indeed a text about Bolivia, Mordecai codes it as `BOL`. 
+
+Now let's do a full geoparsing, extracting all the place names in the text and 
+finding their correct entries in the gazetteer. The final line formats the
+response as a dataframe.
+
+```{r}
+bol_places <- POST(url = places_url, 
+                   as = "parsed", 
+                   body = list("text" = bol), 
+                   encode = "json")
+
+bol_places_df <- bind_rows(content(bol_places))
+bol_places_df
+```
+
+These locations pass an eyeball test: no placename was located to a completely 
+different looking place. Now, for fun, we can plot these locations on an
+interactive leaflet map, sized according to their mentions in the text.
+
+```{r message = FALSE}
+bol_places_df %>% 
+  group_by(placename) %>% 
+  mutate(count = n()) %>% 
+  distinct() %>% 
+  leaflet(.) %>% 
+    addTiles() %>%
+    addCircleMarkers(popup = ~placename, radius = ~3*(count + 2))
+```
+
+A more serious example will use many more texts than this one and would probably
+wrap the raw POST requests into a function. But hopefully this example will get
+R users started with Mordecai.
+
+# References
