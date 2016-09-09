@@ -71,7 +71,6 @@ it. You can find instructions for installing Docker on your operating system
 To start Mordecai locally, run these four commands:
 
 ```
-sudo docker pull openeventdata/es-geonames
 sudo docker run -d -p 9200:9200 --name=elastic openeventdata/es-geonames
 sudo docker build -t mordecai .
 sudo docker run -d -p 5000:5000 --link elastic:elastic mordecai
@@ -79,23 +78,24 @@ sudo docker run -d -p 5000:5000 --link elastic:elastic mordecai
 
 ### Explanation:
 
-The first line downloads a pre-built image of a Geonames Elasticsearch
-container. This container holds the geographic gazetteer that Mordecai uses to
-associate place names with latitudes and longitudes.
+The first line downloads (if you're running it for the first time) and starts a
+pre-built image of a Geonames Elasticsearch container. This container holds the
+geographic gazetteer that Mordecai uses to associate place names with latitudes
+and longitudes. It will be accessible on port 9200 with the name `elastic`.
 
-Line 2 starts that container running locally on port 9200 with the name `elastic`.
+Line 2 builds the main Mordecai image using the commands in the `Dockerfile`.
+This can take up to 20 minutes.
 
-Line 3 builds the main Mordecai image using the commands in the `Dockerfile`. 
-
-Line 4 starts the Mordecai container and tells it to connect to our already
+Line 3 starts the Mordecai container and tells it to connect to our already
 running `elastic` container with the `--link elastic:elastic` option.. Mordecai
 will be accessible on port 5000. By default, Docker runs on 0.0.0.0, so any
 machine on your network will be able to access it.
 
-**NOTE**: Many of the required components for `mordecai`, including the
-word2vec and MITIE models, are very large so downloading and starting the
-service takes a while. You should also ensure that you have approximately 16
-gigs of RAM available.
+**Note on resources**: Many of the required components for `mordecai`,
+including the word2vec and MITIE models, are very large so downloading and
+starting the service takes a while. After starting the service, it will not be
+responsive for several minutes as the models are loaded into memory. You should
+also ensure that you have approximately 16 gigs of RAM available.
 
 
 Advanced Configuration
@@ -116,6 +116,10 @@ running geonames/elasticsearch index.
 
 Second, leave out the `--link elastic:elastic` portion when you call `docker
 run` on Mordecai.
+
+If you make any modifications to the Python files, you'll need to rebuild the
+Mordecai container, which should only take a couple seconds, and then relaunch
+it.
 
 Endpoints
 ---------
@@ -154,6 +158,12 @@ curl -XPOST -H "Content-Type: application/json"  --data '{"text":"(Reuters) - Th
 
 Returns:
 `[{"lat": 34.61581, "placename": "Tikrit", "seachterm": "Tikrit", "lon": 43.67861, "countrycode": "IRQ"}, {"lat": 34.61581, "placename": "Tikrit", "seachterm": "Tikrit", "lon": 43.67861, "countrycode": "IRQ"}, {"lat": 33.32475, "placename": "Baghdad", "seachterm": "Baghdad", "lon": 44.42129, "countrycode": "IRQ"}]`
+
+### R
+
+See the `examples` directory for an example in R, demonstrating how in read in
+text, send it to Mordecai, format the returned JSON, and plot it on an
+interactive map.
 
 ###Python
 
