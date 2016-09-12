@@ -23,6 +23,9 @@ geoparsing software did not. These specific requirements include:
 - Ease of setup and use. The system should be installable and usable by people
   with only basic programming skills. Mordecai does this by running as a Docker
   + REST service, hiding the complexity of installation from end users.
+- Drop-in replacement for [CLIFF](http://cliff.mediameter.org/)/
+[CLAVIN](https://clavin.bericotechnologies.com/) in the [Open Event Data
+Alliance](https://github.com/openeventdata) event data pipeline.
 - Ease of modification. This software was developed to be used primarily by
   social science researchers, who tend to be much more familiar with Python
   than Java. Mordecai makes the key steps in the geoparsing process (named entity
@@ -124,6 +127,8 @@ it.
 Endpoints
 ---------
 
+Each of these endpoints will return example usage with a `GET` request.
+
 1. `/country`
 
     In: text
@@ -146,6 +151,26 @@ Endpoints
 Example usage
 -------------
 
+The primary intended use for Mordecai is to geocode events produced by the
+[Open Event Data Alliance](https://github.com/openeventdata) set of event
+coding tools. These tools extract and structure descriptions of political
+events from news text. The main
+[pipeline](https://github.com/openeventdata/phoenix_pipeline) takes in text
+documents and [their CoreNLP
+parses](https://github.com/openeventdata/stanford_pipeline), extracts events
+from them using [Petrarch2](https://github.com/openeventdata/petrarch2),
+geolocates them (using Mordecai), and does some
+[postprocessing](https://github.com/openeventdata/phoenix_pipeline).
+
+The code integrating Mordecai into the pipeline can be seen
+[here](https://github.com/openeventdata/phoenix_pipeline/blob/master/geolocation.py)
+and is a useful starting point for integrating Mordecai into other production
+pipelines. The examples below demonstrate more basic useage in bash/curl,
+and R, and Python.
+
+
+### Curl
+
 ```
 curl -XPOST -H "Content-Type: application/json"  --data '{"text":"(Reuters) - The Iraqi government claimed victory over Islamic State insurgents in Tikrit on Wednesday after a month-long battle for the city supported by Shiite militiamen and U.S.-led air strikes, saying that only small pockets of resistance remained. State television showed Prime Minister Haidar al-Abadi, accompanied by leaders of the army and police, the provincial governor and Shiite paramilitary leaders, parading through Tikrit and raising an Iraqi flag. The militants captured the city, about 140 km (90 miles) north of Baghdad, last June as they swept through most of Iraqs Sunni Muslim territories, swatting aside a demoralized and disorganized army that has now required an uneasy combination of Iranian and American support to get back on its feet."}' 'http://localhost:5000/places'
 ```
@@ -165,7 +190,7 @@ See the `examples` directory for an example in R, demonstrating how in read in
 text, send it to Mordecai, format the returned JSON, and plot it on an
 interactive map.
 
-###Python
+### Python
 
 ```
 import json
