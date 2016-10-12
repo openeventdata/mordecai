@@ -8,8 +8,11 @@ tags:
   - word embeddings
 authors:
   - name: Andrew Halterman
-  - orcid: 0000-0001-9716-9555
-affiliation: MIT
+    orcid: 0000-0001-9716-9555
+    affiliation: 1
+affiliations:
+  - name: MIT
+    index: 1
 date: 4 September 2016
 bibliography: paper.bib
 ---
