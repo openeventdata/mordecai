@@ -16,7 +16,7 @@ RUN wget https://s3.amazonaws.com/mordecai-geo/GoogleNews-vectors-negative300.bi
 RUN git clone https://github.com/mit-nlp/MITIE.git
 WORKDIR /home/ubuntu/MITIE
 
-RUN wget http://sourceforge.net/projects/mitie/files/binaries/MITIE-models-v0.2.tar.bz2
+RUN wget https://github.com/mit-nlp/MITIE/releases/download/v0.4/MITIE-models-v0.2.tar.bz2
 RUN tar --no-same-owner -xjf MITIE-models-v0.2.tar.bz2
 RUN mkdir /home/ubuntu/MITIE/mitielib/build
 RUN cd mitielib/build; cmake ..
