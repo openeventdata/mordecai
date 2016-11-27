@@ -37,6 +37,31 @@ Alliance](https://github.com/openeventdata) event data pipeline.
   geoparse non-English text, which is a capability that has not existed in open
   source software until now.
 
+Basic Usage
+-----
+```
+usage: app.py [-h] [-c CONFIG_FILE] [-p PORT] [-eh ELASTICSEARCH_HOST]
+              [-ep ELASTICSEARCH_PORT] [-w W2V_MODEL] [-md MD] [-mn MITIE_NER]
+
+Mordecai Geolocation
+
+Options:
+  -h, --help            show this help message and exit
+  -c CONFIG_FILE, --config-file CONFIG_FILE
+                        Specify path to config file.
+  -p PORT, --port PORT  Specify port to listen on.
+  -eh ELASTICSEARCH_HOST, --elasticsearch-host ELASTICSEARCH_HOST
+                        Specify elasticsearch host.
+  -ep ELASTICSEARCH_PORT, --elasticsearch-port ELASTICSEARCH_PORT
+                        Specify elasticsearch port.
+  -w W2V_MODEL, --w2v-model W2V_MODEL
+                        Specify path to w2v model.
+  -md MD, -mitie-dir MD
+                        Specify MITIE directory.
+  -mn MITIE_NER, --mitie-ner MITIE_NER
+                        Specify path to MITIE NER model.
+```
+
 How does it work?
 -----------------
 
@@ -63,7 +88,7 @@ from it. It does this in several ways:
 
 It runs as a Flask-RESTful service inside a Docker container.
 
-Simple Installation
+Simple Docker Installation
 ------------
 
 Mordecai is built as a series of [Docker](https://www.docker.com/) containers,
@@ -71,12 +96,19 @@ which means that you won't need to install any software except Docker to use
 it. You can find instructions for installing Docker on your operating system
 [here](https://docs.docker.com/engine/installation/).
 
-To start Mordecai locally, run these four commands:
+First download models to wherever you like (for this example
+`./data`):
+```
+cd data
+bash fetch_models.sh
+```
+
+To start Mordecai locally, run these three commands:
 
 ```
 sudo docker run -d -p 9200:9200 --name=elastic openeventdata/es-geonames
 sudo docker build -t mordecai .
-sudo docker run -d -p 5000:5000 --link elastic:elastic mordecai
+sudo docker run -d -p 5000:5000 -v PATH/TO/data:/usr/src/data --link elastic:elastic mordecai 
 ```
 
 ### Explanation:
@@ -90,9 +122,10 @@ Line 2 builds the main Mordecai image using the commands in the `Dockerfile`.
 This can take up to 20 minutes.
 
 Line 3 starts the Mordecai container and tells it to connect to our already
-running `elastic` container with the `--link elastic:elastic` option.. Mordecai
+running `elastic` container with the `--link elastic:elastic` option. Mordecai
 will be accessible on port 5000. By default, Docker runs on 0.0.0.0, so any
-machine on your network will be able to access it.
+machine on your network will be able to access it. It also maps the directory
+containing the word2vec and MITIE models to `/src/usre/data`.
 
 **Note on resources**: Many of the required components for `mordecai`,
 including the word2vec and MITIE models, are very large so downloading and

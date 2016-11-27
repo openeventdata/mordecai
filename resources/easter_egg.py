@@ -1,4 +1,4 @@
-from flask.ext.restful import Resource
+from flask_restful import Resource
 
 output = """
         _   _         _            _          _            _             _             _                    _

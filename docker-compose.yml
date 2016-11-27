@@ -4,5 +4,7 @@ mordecai:
         - elastic
     ports:
         - "5000:5000"
+    volumes:
+        - ./data:/usr/src/data
 elastic:
     image: openeventdata/es-geonames

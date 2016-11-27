@@ -9,17 +9,15 @@
 from __future__ import unicode_literals
 import os
 import re
-import sys
 import glob
 import json
 import utilities
-from mitie import *
 from country import CountryAPI
 from ConfigParser import ConfigParser
 from flask import jsonify, make_response
-from flask.ext.httpauth import HTTPBasicAuth
-from flask.ext.restful import Resource, reqparse
-from flask.ext.restful.representations.json import output_json
+from flask_httpauth import HTTPBasicAuth
+from flask_restful import Resource, reqparse
+from flask_restful.representations.json import output_json
 
 # for debugging
 #import requests
@@ -45,21 +43,6 @@ def unauthorized():
     # return 403 instead of 401 to prevent browsers from displaying the
     # default auth dialog
     return make_response(jsonify({'message': 'Unauthorized access'}), 403)
-
-# read in config file
-__location__ = os.path.realpath(os.path.join(os.getcwd(),
-                                             os.path.dirname(__file__)))
-config_file = glob.glob(os.path.join(__location__, '../config.ini'))
-parser = ConfigParser()
-parser.read(config_file)
-mitie_directory = parser.get('Locations', 'mitie_directory')
-
-sys.path.append(mitie_directory)
-
-# Setup connection for elasticsearch
-es_conn = utilities.setup_es()
-ner_model = utilities.setup_mitie(mitie_directory)
-
 
 country_names = ["Afghanistan", "Åland Islands", "Albania", "Algeria",
                  "American Samoa", "Andorra", "Angola", "Anguilla",
@@ -147,10 +130,10 @@ def check_names(results, term):
 
 def extract_feature_class(results, term, context):
     """Guess at geographic feature class based on neighbor words.
-    
+
     Geonames objects include information on the geographic feature types.
     This function looks at the neighboring words around the location and checks
-    if they're in the defined lists above to tell the query whether to look for a 
+    if they're in the defined lists above to tell the query whether to look for a
     place ("P") or administrative area ("A").
 
     This is currently not used because it was causing crappy results.
@@ -165,10 +148,12 @@ def extract_feature_class(results, term, context):
         return ['A', 'P', 'S']
 
 class PlacesAPI(Resource):
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.reqparse = reqparse.RequestParser()
         self.reqparse.add_argument('text', type=unicode, location='json')
         self.reqparse.add_argument('country', type=unicode, location='json')
+        self.ner_model = kwargs['ner_model']
+        self.es_conn = kwargs['es_conn']
         __location__ = os.path.realpath(os.path.join(os.getcwd(),
                                os.path.dirname(__file__)))
         admin1_file = glob.glob(os.path.join(__location__, 'data/admin1CodesASCII.json'))
@@ -178,7 +163,7 @@ class PlacesAPI(Resource):
 
     def get(self):
         """
-        Let users send an HTTP GET request to this endpoint to make sure it's up and 
+        Let users send an HTTP GET request to this endpoint to make sure it's up and
         give some guidance on how it works.
         """
 
@@ -192,9 +177,9 @@ and longitudes in the form: {"lat":34.567, "lon":12.345,
 
     def post(self):
         """
-        A POST wrapper around the main process function defined below. 
-        
-        It gets `text` and `country` out of the POST request. If country 
+        A POST wrapper around the main process function defined below.
+
+        It gets `text` and `country` out of the POST request. If country
         isn't in the request, call /country to get it. It listifies the country_filter
         because the elasticsearch request needs it in that format.
         """
@@ -217,7 +202,7 @@ and longitudes in the form: {"lat":34.567, "lon":12.345,
 
     def process(self, text, country_filter):
         """
-        The main processing function that extracts place names from text, does the 
+        The main processing function that extracts place names from text, does the
         country-limited search, and returns the findings.
 
         Parameters
@@ -237,7 +222,7 @@ and longitudes in the form: {"lat":34.567, "lon":12.345,
         admin1 is the name of the state/region/governorate/province that the location is in.
         """
 
-        locs = utilities.mitie_context(text, ner_model)
+        locs = utilities.mitie_context(text, self.ner_model)
         locations = []
         for i in locs['entities']:
             if i['text'] in country_names:
@@ -255,7 +240,7 @@ and longitudes in the form: {"lat":34.567, "lon":12.345,
                     try:
                         t = self.place_cache[cache_term]
                     except KeyError:
-                        t = utilities.query_geonames(es_conn,
+                        t = utilities.query_geonames(self.es_conn,
                                                      searchterm,
                                                      country_filter)
                         self.place_cache[cache_term] = t
@@ -292,7 +277,7 @@ and longitudes in the form: {"lat":34.567, "lon":12.345,
         Returns
         ---------
         loc: list
-             lat, lon, term, placename, place type (A, P, etc. see geonames docs), 
+             lat, lon, term, placename, place type (A, P, etc. see geonames docs),
              countrycode (ISO 3 character), administrative region name.
         """
         results = results['hits']['hits']
@@ -311,6 +296,3 @@ and longitudes in the form: {"lat":34.567, "lon":12.345,
                place['name'], place['feature_class'],
                place['country_code3'], admin1_name]
         return loc
-    
-    
-    
