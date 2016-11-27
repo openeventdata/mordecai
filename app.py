@@ -23,8 +23,10 @@ if __name__ == '__main__':
                                       configs['mitie_ner_model'])
 
     print 'Setting up Word2Vec.'
+    location = os.path.realpath(os.path.join(os.getcwd(),
+                                                 os.path.dirname(__file__)))
     w2v_data = utilities.setup_w2v(configs['word2vec_model'],
-                                   'resources/stopword_country_names.json')
+                                   location + '/resources/stopword_country_names.json')
 
     print 'Setting up Elasticsearch connection.'
     es_conn = utilities.setup_es(configs['es_host'], configs['es_port'])
@@ -39,6 +41,7 @@ if __name__ == '__main__':
                                                                     'idx_country_mapping': w2v_data['idx_country_mapping']})
     api.add_resource(EasterEgg, '/easter_egg')
 
+    print 'Starting server.'
     http_server = HTTPServer(WSGIContainer(app))
     http_server.listen(configs['mordecai_port'])
     IOLoop.instance().start()
