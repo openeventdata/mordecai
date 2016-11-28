@@ -7,7 +7,7 @@ import numpy
 import mitie
 import pprint
 import argparse
-import unidecode
+from unidecode import unidecode
 from gensim.models import Word2Vec
 from elasticsearch_dsl import Search
 from ConfigParser import ConfigParser
@@ -101,9 +101,9 @@ def get_configs(args):
         else:
             config_dict['mitie_ner_model'] = args.mitie_ner
         if os.getenv('MORDECAI_PORT'):
-            config_dict['moredcai_port'] = os.getenv('MORDECAI_PORT')
+            config_dict['mordecai_port'] = os.getenv('MORDECAI_PORT')
         else:
-            config_dict['moredecai_port'] = args.port
+            config_dict['mordecai_port'] = args.port
         if os.getenv('ES_HOST'):
             config_dict['es_host'] = os.getenv('ES_HOST')
         else:

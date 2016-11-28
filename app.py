@@ -1,3 +1,4 @@
+import os
 from flask import Flask
 from flask_restful import Api
 from resources import utilities
@@ -32,13 +33,18 @@ if __name__ == '__main__':
     es_conn = utilities.setup_es(configs['es_host'], configs['es_port'])
 
     #api.add_resource(OscAPI, '/osc')
-    api.add_resource(PlacesAPI, '/places', resource_class_kwargs={'ner_model': ner_model,
-                                                                  'es_conn': es_conn})
-    api.add_resource(CountryAPI, '/country', resource_class_kwargs={'ner_model': ner_model,
-                                                                    'index': w2v_data['index'],
-                                                                    'vocab_set': w2v_data['vocab_set'],
-                                                                    'prebuilt': w2v_data['prebuilt'],
-                                                                    'idx_country_mapping': w2v_data['idx_country_mapping']})
+    country_kwargs = {'ner_model': ner_model,
+                      'index': w2v_data['index'],
+                      'vocab_set': w2v_data['vocab_set'],
+                      'prebuilt': w2v_data['prebuilt'],
+                      'idx_country_mapping': w2v_data['idx_country_mapping']}
+    api.add_resource(PlacesAPI,
+                     '/places',
+                     resource_class_kwargs={'ner_model': ner_model,
+                                            'es_conn': es_conn,
+                                            'country_kwargs': country_kwargs})
+    api.add_resource(CountryAPI, '/country',
+                     resource_class_kwargs=country_kwargs)
     api.add_resource(EasterEgg, '/easter_egg')
 
     print 'Starting server.'

@@ -154,6 +154,7 @@ class PlacesAPI(Resource):
         self.reqparse.add_argument('country', type=unicode, location='json')
         self.ner_model = kwargs['ner_model']
         self.es_conn = kwargs['es_conn']
+        self.country_kwargs = kwargs['country_kwargs']
         __location__ = os.path.realpath(os.path.join(os.getcwd(),
                                os.path.dirname(__file__)))
         admin1_file = glob.glob(os.path.join(__location__, 'data/admin1CodesASCII.json'))
@@ -189,7 +190,7 @@ and longitudes in the form: {"lat":34.567, "lon":12.345,
         print country_filter
         if not country_filter:
             try:
-                country_filter = CountryAPI().process(text)
+                country_filter = CountryAPI(**self.country_kwargs).process(text)
             except ValueError:
                 return json.dumps(locations)
         if not isinstance(country_filter, list):
