@@ -13,7 +13,6 @@ import glob
 import json
 import utilities
 from country import CountryAPI
-from ConfigParser import ConfigParser
 from flask import jsonify, make_response
 from flask_httpauth import HTTPBasicAuth
 from flask_restful import Resource, reqparse
