@@ -37,31 +37,6 @@ Alliance](https://github.com/openeventdata) event data pipeline.
   geoparse non-English text, which is a capability that has not existed in open
   source software until now.
 
-Basic Usage
------
-```
-usage: app.py [-h] [-c CONFIG_FILE] [-p PORT] [-eh ELASTICSEARCH_HOST]
-              [-ep ELASTICSEARCH_PORT] [-w W2V_MODEL] [-md MD] [-mn MITIE_NER]
-
-Mordecai Geolocation
-
-Options:
-  -h, --help            show this help message and exit
-  -c CONFIG_FILE, --config-file CONFIG_FILE
-                        Specify path to config file.
-  -p PORT, --port PORT  Specify port to listen on.
-  -eh ELASTICSEARCH_HOST, --elasticsearch-host ELASTICSEARCH_HOST
-                        Specify elasticsearch host.
-  -ep ELASTICSEARCH_PORT, --elasticsearch-port ELASTICSEARCH_PORT
-                        Specify elasticsearch port.
-  -w W2V_MODEL, --w2v-model W2V_MODEL
-                        Specify path to w2v model.
-  -md MD, -mitie-dir MD
-                        Specify MITIE directory.
-  -mn MITIE_NER, --mitie-ner MITIE_NER
-                        Specify path to MITIE NER model.
-```
-
 How does it work?
 -----------------
 
@@ -98,9 +73,9 @@ it. You can find instructions for installing Docker on your operating system
 
 First download models to wherever you like (for this example
 `./data`):
+
 ```
-cd data
-bash fetch_models.sh
+bash data/fetch_models.sh
 ```
 
 To start Mordecai locally, run these three commands:
@@ -113,10 +88,14 @@ sudo docker run -d -p 5000:5000 -v PATH/TO/data:/usr/src/data --link elastic:ela
 
 ### Explanation:
 
-The first line downloads (if you're running it for the first time) and starts a
-pre-built image of a Geonames Elasticsearch container. This container holds the
-geographic gazetteer that Mordecai uses to associate place names with latitudes
-and longitudes. It will be accessible on port 9200 with the name `elastic`.
+The first code block downloads the pre-built word2vec and MITIE models that
+Mordecai needs.
+
+In the second block, the first line downloads (if you're running it for the
+first time) and starts a pre-built image of a Geonames Elasticsearch container.
+This container holds the geographic gazetteer that Mordecai uses to associate
+place names with latitudes and longitudes. It will be accessible on port 9200
+with the name `elastic`.
 
 Line 2 builds the main Mordecai image using the commands in the `Dockerfile`.
 This can take up to 20 minutes.
@@ -125,8 +104,8 @@ Line 3 starts the Mordecai container and tells it to connect to our already
 running `elastic` container with the `--link elastic:elastic` option. Mordecai
 will be accessible on port 5000. By default, Docker runs on 0.0.0.0, so any
 machine on your network will be able to access it. It also maps the directory
-containing the word2vec and MITIE models to `/src/usre/data`.
-
+containing the word2vec and MITIE models to `/src/user/data`.
+ 
 **Note on resources**: Many of the required components for `mordecai`,
 including the word2vec and MITIE models, are very large so downloading and
 starting the service takes a while. After starting the service, it will not be
@@ -156,6 +135,36 @@ run` on Mordecai.
 If you make any modifications to the Python files, you'll need to rebuild the
 Mordecai container, which should only take a couple seconds, and then relaunch
 it.
+
+### Changing Mordecai options (Advanced)
+
+The Mordecai Flask service runs with default values, but you can change them in
+the Dockerfile or using environmental variables if you need it to use a
+different port, host, etc. The options are described here:
+
+```
+usage: app.py [-h] [-c CONFIG_FILE] [-p PORT] [-eh ELASTICSEARCH_HOST]
+              [-ep ELASTICSEARCH_PORT] [-w W2V_MODEL] [-md MD] [-mn MITIE_NER]
+
+Mordecai Geolocation
+
+Options:
+  -h, --help            show this help message and exit
+  -c CONFIG_FILE, --config-file CONFIG_FILE
+                        Specify path to config file.
+  -p PORT, --port PORT  Specify port to listen on.
+  -eh ELASTICSEARCH_HOST, --elasticsearch-host ELASTICSEARCH_HOST
+                        Specify elasticsearch host.
+  -ep ELASTICSEARCH_PORT, --elasticsearch-port ELASTICSEARCH_PORT
+                        Specify elasticsearch port.
+  -w W2V_MODEL, --w2v-model W2V_MODEL
+                        Specify path to w2v model.
+  -md MD, -mitie-dir MD
+                        Specify MITIE directory.
+  -mn MITIE_NER, --mitie-ner MITIE_NER
+                        Specify path to MITIE NER model.
+```
+
 
 Endpoints
 ---------
