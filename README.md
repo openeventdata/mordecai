@@ -270,6 +270,17 @@ complete. If this service is running locally in a Docker container, uncomment
 the `Server` section in the config file so host = `localhost` and port =
 `9200`.
 
+Acknowledgements
+----------------
+
+This work was funded in part by DARPA's XDATA program, the U.S.  Army Research
+Laboratory and the U.S. Army Research Office through the Minerva Initiative
+under grant number W911NF-13-0332, and the National Science Foundation under
+award number SBE-SMA-1539302. Any opinions, findings, and conclusions or
+recommendations expressed in this material are those of the authors and do not
+necessarily reflect the views of DARPA, ARO, Minerva, NSF, or the U.S.
+government.
+
 Contributing
 ------------
 
