@@ -1,0 +1,282 @@
+nationality,alpha_3_code
+Afghan,AFG
+Åland Island,ALA
+Albanian,ALB
+Algerian,DZA
+American Samoan,ASM
+Andorran,AND
+Angolan,AGO
+Anguillan,AIA
+Antarctic,ATA
+Antiguan,ATG
+Barbudan,ATG
+Argentine,ARG
+Armenian,ARM
+Aruban,ABW
+Australian,AUS
+Austrian,AUT
+Azerbaijani,AZE
+Azeri, AZE
+Bahamian,BHS
+Bahraini,BHR
+Bangladeshi,BGD
+Barbadian,BRB
+Belarusian,BLR
+Belgian,BEL
+Belizean,BLZ
+Beninese,BEN
+Beninois,BEN
+BermudianBMU
+Bermudan,BMU
+Bhutanese,BTN
+Bolivian,BOL
+Bonaire,BES
+Bosnian,BIH
+Motswana,BWA
+Botswanan,BWA
+Bouvet Island,BVT
+Brazilian,BRA
+Bruneian,BRN
+Bulgarian,BGR
+Burkinabé,BFA
+Burundian,BDI
+Cabo Verdean,CPV
+Cambodian,KHM
+Cameroonian,CMR
+Canadian,CAN
+Caymanian,CYM
+Chadian,TCD
+Chilean,CHL
+Chinese,CHN
+Christmas Islander,CXR
+Cocos Island,CCK
+Cocos Islander,CCK
+Colombian,COL
+Comoran,COM
+Comorian,COM
+Congolese,COG
+Congolese,COD
+Cook Islander,COK
+Costa Rican,CRI
+Ivorian,CIV
+Croatian,HRV
+Cuban,CUB
+Curaçaoan,CUW
+Cypriot,CYP
+Czech,CZE
+Danish,DNK
+Djiboutian,DJI
+Dominican,DMA
+Dominican,DOM
+Ecuadorian,ECU
+Egyptian,EGY
+Salvadoran,SLV
+Equatorial Guinean,GNQ
+Equatoguinean,GNQ
+Eritrean,ERI
+Estonian,EST
+Ethiopian,ETH
+Falkland Island,FLK
+Faroese,FRO
+Fijian,FJI
+Finnish,FIN
+French,FRA
+French Guianese,GUF
+French Polynesian,PYF
+Gabonese,GAB
+Gambian,GMB
+Georgian,GEO
+German,DEU
+Ghanaian,GHA
+Gibraltar,GIB
+Greek,GRC
+Hellenic,GRC
+Greenlandic,GRL
+Grenadian,GRD
+Guadeloupe,GLP
+Guamanian,GUM
+Guambat,GUM
+Guatemalan,GTM
+Channel Islander,GGY
+Guinean,GIN
+Bissau-Guinean,GNB
+Guyanese,GUY
+Haitian,HTI
+Honduran,HND
+Hong Kongese,HKG
+Hungarian,HUN
+Magyar,HUN
+Icelandic,ISL
+Indian,IND
+Indonesian,IDN
+Iranian,IRN
+Persian,IRN
+Iraqi,IRQ
+Irish,IRL
+Manx,IMN
+Israeli,ISR
+Italian,ITA
+Jamaican,JAM
+Japanese,JPN
+Channel Island,JEY
+Jordanian,JOR
+Kazakhstani,KAZ
+Kazakh,KAZ
+Kenyan,KEN
+I-Kiribati,KIR
+North Korean,PRK
+South Korean,KOR
+Kuwaiti,KWT
+Kyrgyzstani,KGZ
+Kyrgyz,KGZ
+Kirgiz,KGZ
+Kirghiz,KGZ
+Lao,LAO
+Laotian,LAO
+Latvian,LVA
+Lebanese,LBN
+Basotho,LSO
+Liberian,LBR
+Libyan,LBY
+Liechtenstein,LIE
+Lithuanian,LTU
+Luxembourgish,LUX
+Macanese,MAC
+Macedonian,MKD
+Malagasy,MDG
+Malawian,MWI
+Malaysian,MYS
+Maldivian,MDV
+Malian,MLI
+Malinese,MLI
+Maltese,MLT
+Marshallese,MHL
+Martiniquais,MTQ
+Martinican,MTQ
+Mauritanian,MRT
+Mauritian,MUS
+Mahoran,MYT
+Mexican,MEX
+Micronesian,FSM
+Moldovan,MDA
+Monégasque,MCO
+Monacan,MCO
+Mongolian,MNG
+Montenegrin,MNE
+Montserratian,MSR
+Moroccan,MAR
+Mozambican,MOZ
+Burmese,MMR
+Namibian,NAM
+Nauruan,NRU
+Nepali,NPL
+Nepalese,NPL
+Dutch, NLD
+Netherlandic,NLD
+New Caledonian,NCL
+New Zealander,NZL
+Nicaraguan,NIC
+Nigerien,NER
+Nigerian,NGA
+Niuean,NIU
+Norfolk Island,NFK
+Northern Marianan,MNP
+Norwegian,NOR
+Omani,OMN
+Pakistani,PAK
+Palauan,PLW
+Palestinian,PSE
+Panamanian,PAN
+Papua New Guinean, PNG
+Papuan,PNG
+Paraguayan,PRY
+Peruvian,PER
+Philippine, PHL
+Filipino,PHL
+Pitcairn Island,PCN
+Polish,POL
+Portuguese,PRT
+Puerto Rican,PRI
+Qatari,QAT
+Réunionese, REU
+Réunionnais,REU
+Romanian,ROU
+Russian,RUS
+Rwandan,RWA
+Barthélemois,BLM
+Saint Helenian,SHN
+Kittitian or Nevisian,KNA
+Saint Lucian,LCA
+Saint-Martinoise,MAF
+Saint-Pierrais,SPM
+Miquelonnais,SPM
+Saint Vincentian, VCT
+Vincentian,VCT
+Samoan,WSM
+Sammarinese,SMR
+São Toméan,STP
+Saudi, SAU
+Saudi Arabian,SAU
+Senegalese,SEN
+Serbian,SRB
+Serb,SRB
+Seychellois,SYC
+Sierra Leonean,SLE
+Singaporean,SGP
+Sint Maarten,SXM
+Slovak,SVK
+Slovenian, SVN
+Slovene,SVN
+Solomon Island,SLB
+Somali,SOM
+Somalian,SOM
+South African,ZAF
+South Sudanese,SSD
+Spanish,ESP
+Sri Lankan,LKA
+Sudanese,SDN
+Surinamese,SUR
+Svalbard,SJM
+Swazi,SWZ
+Swedish,SWE
+Swiss,CHE
+Syrian,SYR
+Taiwanese,TWN
+Tajikistani,TJK
+Tanzanian,TZA
+Thai,THA
+Timorese,TLS
+Togolese,TGO
+Tokelauan,TKL
+Tongan,TON
+Trinidadian,TTO
+Tobagonian,TTO
+Tunisian,TUN
+Turkish,TUR
+Turkmen,TKM
+Turkmeni,TKM
+Tuvaluan,TUV
+Ugandan,UGA
+Ukrainian,UKR
+Emirati,ARE
+Emirian,ARE
+Emiri,ARE
+British,GBR
+UK, GBR
+American,USA
+Uruguayan,URY
+Uzbekistani,UZB
+Uzbek,UZB
+Uzbeki,UZB
+Ni-Vanuatu,VUT
+Vanuatuan,VUT
+Venezuelan,VEN
+Vietnamese,VNM
+Wallisian,WLF
+Futunan,WLF
+Sahrawi,ESH
+Sahrawian,ESH
+Sahraouian,ESH
+Yemeni,YEM
+Zambian,ZMB
+Zimbabwean,ZWE
