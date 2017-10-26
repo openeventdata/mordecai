@@ -8,6 +8,8 @@ from collections import Counter
 
 from . import utilities
 
+import spacy
+nlp = spacy.load('en_core_web_lg')
 
 class Geoparse:
     def __init__(self, es_ip="localhost", es_port="9200"):
@@ -19,13 +21,12 @@ class Geoparse:
         self.conn = utilities.setup_es(es_ip, es_port)
         self.country_exact = False # flag if it detects a country
         self.fuzzy = False # did it have to use fuzziness?
-        self.model = keras.models.load_model("mordecai/data/country_model.h5")
+        self.model = keras.models.load_model("/Users/ahalterman/MIT/Geolocation/mordecai/mordecai/data/country_model.h5")
         countries = pd.read_csv("nat_df.csv")
         nationality = dict(zip(countries.nationality,countries.alpha_3_code))
         self.both_codes = {**nationality, **self.cts}
         self.skip_list = utilities.make_skip_list(self.cts)
         self.training_setting = False # make this true if you want training formatted
-
     def country_mentions(self, doc):
         """
         Given a document, count how many times different country names and adjectives are mentioned.
@@ -185,7 +186,8 @@ class Geoparse:
         country_picking: dict, with top two countries (ISO codes) and two measures of
                 confidence for the first choice.
         """
-        #text = nlp(text)
+        if not hasattr(text, "vector"):
+            text = nlp(text)
         prebuilt_vec = [w.vector for w in self.ct_nlp]
         try:
             simils = np.dot(prebuilt_vec, text.vector)
@@ -321,6 +323,8 @@ class Geoparse:
 
 
     def process_text(self, text, require_maj = True):
+        if not hasattr(text, "ents"):
+            text = nlp(text)
         # initialize the place to store finalized tasks
         task_list = []
 
@@ -497,6 +501,8 @@ class Geoparse:
                 "matrix" : np.asmatrix(X_mat)}
 
     def doc_to_guess(self, doc):
+        if not hasattr(doc, "ents"):
+            doc = nlp(doc)
         proced = self.process_text(doc, require_maj=False)
 
         feat_list = []
@@ -518,6 +524,8 @@ class Geoparse:
         return proced
 
     def geoparse(self, doc):
+        if not hasattr(doc, "ents"):
+            doc = nlp(doc)
         proced = self.doc_to_guess(doc)
         for loc in proced:
             place_id = loc['word'] + "_" + loc['label']
@@ -550,3 +558,4 @@ class Geoparse:
     def clean_dict(self, proced):
         # optionally clean up the main dictionary before returning it. Most people
         # won't want the sentence, all the features, etc. to come back.
+        pass
