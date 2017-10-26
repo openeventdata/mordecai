@@ -12,21 +12,27 @@ import spacy
 nlp = spacy.load('en_core_web_lg')
 
 class Geoparse:
-    def __init__(self, es_ip="localhost", es_port="9200"):
+    def __init__(self, es_ip="localhost", es_port="9200", verbose = False,
+                country_threshold = 0.8):
         self.cache = {}
         self.cts = utilities.country_list_maker()
         self.ct_nlp = utilities.country_list_nlp(self.cts)
+        self.prebuilt_vec = [w.vector for w in self.ct_nlp]
         self.both_codes = utilities.make_country_nationality_list(self.cts)
         self.inv_cts = utilities.make_inv_cts(self.cts)
         self.conn = utilities.setup_es(es_ip, es_port)
         self.country_exact = False # flag if it detects a country
         self.fuzzy = False # did it have to use fuzziness?
-        self.model = keras.models.load_model("/Users/ahalterman/MIT/Geolocation/mordecai/mordecai/data/country_model.h5")
+        self.model = keras.models.load_model("/Users/ahalterman/MIT/Geolocation/mordecai/data/country_model.h5")
         countries = pd.read_csv("nat_df.csv")
         nationality = dict(zip(countries.nationality,countries.alpha_3_code))
         self.both_codes = {**nationality, **self.cts}
         self.skip_list = utilities.make_skip_list(self.cts)
         self.training_setting = False # make this true if you want training formatted
+        self.country_threshold = country_threshold # if the best guess is below this, don't return
+                                                   # anything at all
+        self.verbose = verbose # return the full dictionary or just the good parts?
+
     def country_mentions(self, doc):
         """
         Given a document, count how many times different country names and adjectives are mentioned.
@@ -127,7 +133,7 @@ class Geoparse:
             return ""
 
 
-    def most_alternative(self, results):
+    def most_alternative(self, results, full_results = False):
         """
         Find the placename with the most alternative names and return its country.
         More alternative names are a rough measure of importance.
@@ -144,7 +150,10 @@ class Geoparse:
         try:
             alt_names = [len(i['alternativenames']) for i in results['hits']['hits']]
             most_alt = results['hits']['hits'][np.array(alt_names).argmax()]
-            return most_alt['country_code3']
+            if full_results == True:
+                return most_alt
+            else:
+                return most_alt['country_code3']
         except (IndexError, ValueError, TypeError):
             return ""
 
@@ -186,11 +195,10 @@ class Geoparse:
         country_picking: dict, with top two countries (ISO codes) and two measures of
                 confidence for the first choice.
         """
-        if not hasattr(text, "vector"):
-            text = nlp(text)
-        prebuilt_vec = [w.vector for w in self.ct_nlp]
+        #if not hasattr(text, "vector"):
+        #    text = nlp(text)
         try:
-            simils = np.dot(prebuilt_vec, text.vector)
+            simils = np.dot(self.prebuilt_vec, text.vector)
         except Exception as e:
             #print("Vector problem, ", Exception, e)
             return {"country_1" : "",
@@ -322,14 +330,14 @@ class Geoparse:
         return out
 
 
-    def process_text(self, text, require_maj = True):
+    def process_text(self, text, require_maj = False):
         if not hasattr(text, "ents"):
             text = nlp(text)
         # initialize the place to store finalized tasks
         task_list = []
 
         # get document vector
-        doc_vec = self.vector_picking(text)['country_1']
+        #doc_vec = self.vector_picking(text)['country_1']
 
         # get explicit counts of country names
         ct_mention, ctm_count1, ct_mention2, ctm_count2 = self.country_mentions(text)
@@ -350,8 +358,13 @@ class Geoparse:
 
             # vector for just the solo word
             vp = self.vector_picking(ent)
-            word_vec = vp['country_1']
-            wv_confid = str(vp['confid_a'])
+            try:
+                word_vec = vp['country_1']
+                wv_confid = str(vp['confid_a'])
+            except TypeError:
+                # no idea why this comes up
+                word_vec = ""
+                wv_confid = "0"
 
             ##### ES-based features
             # cache search results
@@ -365,6 +378,7 @@ class Geoparse:
             most_common = self.most_common_geo(self.result)
             most_pop = self.most_population(self.result)
             first_back, second_back = self.get_first_back(self.result)
+            #print(most_alt)
 
             try:
                 maj_vote = Counter([word_vec, most_alt,
@@ -374,12 +388,12 @@ class Geoparse:
                                     ]).most_common()[0][0]
                     # add winning count/percent here? (both with and without missing)
             except Exception as e:
-                print(ent, e)
+                #print(ent, e)
                 maj_vote = ""
 
 
             if not maj_vote:
-                print("No majority vote for ", ent, [word_vec, most_alt, first_back, most_pop])
+                #print("No majority vote for ", ent, [word_vec, most_alt, first_back, most_pop])
                 maj_vote = ""
 
             # We only want all this junk for the labeling task. We just want to straight to features
@@ -387,8 +401,8 @@ class Geoparse:
 
             if True: #self.training_setting == True:
                 # maybe skip later if it's slow...
-                if not maj_vote and require_maj == True:
-                    continue
+                #if not maj_vote and require_maj == True:
+                #    continue
                 try:
                     start = ent.start_char - ent.sent.start_char
                     end = ent.end_char - ent.sent.start_char
@@ -396,7 +410,9 @@ class Geoparse:
                     try:
                         text_label = self.inv_cts[iso_label]
                     except KeyError:
+                        print("couldn't look up country label")
                         text_label = ""
+
                     task = {"text" : ent.sent.text,
                             "label" : text_label,
                             "word" : ent.text,
@@ -406,7 +422,7 @@ class Geoparse:
                                 } # make sure to rename for Prodigy
                                     ],
                             "features" : {
-                                    "maj_vote" : ent_label,
+                                    "maj_vote" : iso_label,
                                     "word_vec" : word_vec,
                                     "first_back" : first_back,
                                     #"doc_vec" : doc_vec,
@@ -420,7 +436,6 @@ class Geoparse:
                                     #"places_vec" : places_vec,
                                     #"doc_vec_sent" : doc_vec_sent
                                     } }
-
                     task_list.append(task)
                 except Exception as e:
                     print(ent.text,)
@@ -504,7 +519,8 @@ class Geoparse:
         if not hasattr(doc, "ents"):
             doc = nlp(doc)
         proced = self.process_text(doc, require_maj=False)
-
+        if not proced:
+            print("Nothing came back from process_text")
         feat_list = []
         for loc in proced:
             feat = self.entry_for_prediction(loc)
@@ -516,46 +532,102 @@ class Geoparse:
                 ranks = prediction.argsort()[::-1]
                 labels = np.asarray(labels)[ranks]
                 prediction = prediction[ranks]
-            loc['label'] = labels[0]
-            loc['confidence'] = prediction[0]
+            loc['country_predicted'] = labels[0]
+            loc['country_conf'] = prediction[0]
             loc['all_countries'] = labels
             loc['all_confidence'] = prediction
 
         return proced
 
+
+    def format_geonames(self, res):
+        # pull out just what we want from the top geonames entry, do the admin1 formatting
+        try:
+            # take the most alternative names
+            top = self.most_alternative(res, full_results=True)
+            lat, lon = top['coordinates'].split(",")
+            new_res = {"admin1" : "to do",
+                  "lat" : lat,
+                  "lon" : lon,
+                  "country_code3" : top["country_code3"],
+                  "geonameid" : top["geonameid"],
+                  "place_name" : top["name"],
+                  "feature_class" : top["feature_class"],
+                   "feature_code" : top["feature_code"]}
+            return new_res
+        except (IndexError, TypeError):
+            # two conditions: 1. there are no results for some reason (Index)
+            # 2. res is set to "" because the country model was below the thresh
+            new_res = {"admin1" : "to do",
+                  "lat" : "",
+                  "lon" : "",
+                  "country_code3" : "",
+                  "geonameid" : "",
+                  "place_name" : "",
+                  "feature_class" : "",
+                   "feature_code" : ""}
+            return new_res
+
+
+
+    def clean_proced(self, proced):
+        for loc in proced:
+            try:
+                del loc['all_countries']
+            except KeyError:
+                pass
+            try:
+                del loc['all_confidence']
+            except KeyError:
+                pass
+            try:
+                del loc['text']
+            except KeyError:
+                pass
+            try:
+                del loc['label']
+            except KeyError:
+                pass
+            try:
+                del loc['features']
+            except KeyError:
+                pass
+        return proced
+
     def geoparse(self, doc):
+        #print(doc)
         if not hasattr(doc, "ents"):
             doc = nlp(doc)
+        #print(doc)
         proced = self.doc_to_guess(doc)
+        if not proced:
+            print("Nothing came back from doc_to_guess...")
         for loc in proced:
-            place_id = loc['word'] + "_" + loc['label']
+            place_id = loc['word'] + "_" + loc['country_predicted']
             # need to handle lack of key
-            if loc['confidence'] >= 0.8: # shrug
+            if loc['country_conf'] >= self.country_threshold: # shrug
                 try:
                     res = self.cache[place_id]
                     if res:
                         self.cache[place_id] = res
                 except KeyError:
-                    res = self.query_geonames_country(loc['word'], loc['label'])
+                    res = self.query_geonames_country(loc['word'], loc['country_predicted'])
                     if res:
                         self.cache[place_id] = res
-            elif loc['confidence'] < 0.8:
+            elif loc['country_conf'] < self.country_threshold:
+                res = ""
                 # if the confidence is too low, don't use the country info
-                try:
-                    res = self.cache[loc['word']]
-                except KeyError:
-                    res = self.query_geonames(i['word'])
-                    self.cache[loc['word']] = res
+                #try:
+                #    res = self.cache[loc['word']]
+                #except KeyError:
+                #    res = self.query_geonames(i['word'])
+                #    self.cache[loc['word']] = res
 
-            loc['geonames'] = res
+            loc['geo'] = self.format_geonames(res)
+
+        if not self.verbose:
+            proced = self.clean_proced(proced)
+
         return proced
 
 
-    def format_geonames(self, top_result):
-        # pull out just what we want from the top geonames entry, do the admin1 formatting
-        pass
-
-    def clean_dict(self, proced):
-        # optionally clean up the main dictionary before returning it. Most people
-        # won't want the sentence, all the features, etc. to come back.
-        pass
