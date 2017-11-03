@@ -23,9 +23,9 @@ class Geoparse:
         self.conn = utilities.setup_es(es_ip, es_port)
         self.country_exact = False # flag if it detects a country
         self.fuzzy = False # did it have to use fuzziness?
-        self.model = keras.models.load_model("/Users/ahalterman/MIT/Geolocation/mordecai/data/country_model.h5")
+        self.model = keras.models.load_model("/Users/ahalterman/MIT/Geolocation/mordecai/mordecai/models/country_model.h5")
         countries = pd.read_csv("nat_df.csv")
-        nationality = dict(zip(countries.nationality,countries.alpha_3_code))
+        nationality = dict(zip(countries.nationality, countries.alpha_3_code))
         self.both_codes = {**nationality, **self.cts}
         self.skip_list = utilities.make_skip_list(self.cts)
         self.training_setting = False # make this true if you want training formatted
@@ -178,7 +178,6 @@ class Geoparse:
             most_pop = results['hits']['hits'][np.array(populations).astype("int").argmax()]
             return most_pop['country_code3']
         except Exception as e:
-            print("Error in most_population: ", e)
             return ""
 
 
@@ -330,9 +329,22 @@ class Geoparse:
         return out
 
 
-    def process_text(self, text, require_maj = False):
-        if not hasattr(text, "ents"):
-            text = nlp(text)
+    def process_text(self, doc, require_maj = False):
+        """Create features for the country picking model
+
+        Parameters
+        -----------
+        doc : str or spaCy doc
+
+        Returns
+        -------
+        task_list : list of dicts
+            Each entry has the word, surrounding text, span, and the country picking features.
+            This output can be put into Prodigy for labeling almost as-is (the "features" key needs
+            to be renamed "meta" or be deleted.)
+        """
+        if not hasattr(doc, "ents"):
+            text = nlp(doc)
         # initialize the place to store finalized tasks
         task_list = []
 
@@ -343,7 +355,7 @@ class Geoparse:
         ct_mention, ctm_count1, ct_mention2, ctm_count2 = self.country_mentions(text)
 
         # now iterate through the entities, skipping irrelevant ones and countries
-        for ent in text.ents:
+        for ent in doc.ents:
             if not ent.text.strip():
                 continue
             if ent.label_ not in ["GPE","LOC","FAC"]:
@@ -371,7 +383,10 @@ class Geoparse:
             try:
                 self.result = self.cache[ent.text]
             except KeyError:
-                self.result = self.query_geonames(ent.text)
+                try:
+                    self.result = self.query_geonames(ent.text)
+                except ConnectionTimeout:
+                    self.result = ""
 
             # build results-based features
             most_alt = self.most_alternative(self.result)
@@ -410,7 +425,6 @@ class Geoparse:
                     try:
                         text_label = self.inv_cts[iso_label]
                     except KeyError:
-                        print("couldn't look up country label")
                         text_label = ""
 
                     task = {"text" : ent.sent.text,
@@ -448,46 +462,29 @@ class Geoparse:
     #  A third, standalone function will convert the labeled JSON from Prodigy into
     #    features for updating the model.
 
-    def make_features(self, entry, label):
-        # this one should only be called when updating the model
-        word_vec = entry['features']['word_vec']
-        first_back = entry['features']['first_back']
-        most_alt = entry['features']['most_alt']
-        most_pop = entry['features']['most_pop']
 
-        inputs  = np.array([word_vec, first_back, most_alt, most_pop])
-        x = inputs == label
-        x = np.asarray((x * 2) - 1) # convert to -1, 1
-
-        # get missing values
-        exists = inputs != ""
-        exists = np.asarray((exists * 2) - 1)
-
-        # calculate some new stuff:
-        top, top_count, two, two_count = country_mentions(text)
-        counts = np.asarray([top_count, two_count])
-        right = np.asarray([top, two]) == label
-        right = right*2 - 1
-        #print(right)
-        right[counts == 0] = 0
-        #print(right)
-
-        # get correct values
-        features = np.concatenate([x, exists, counts, right])
-        return features
-
-    def entry_for_prediction(self, entry):
+    def entry_for_prediction(self, loc):
         """
-        Create features for all possible labels, return as matrix for keras
+        Create features for all possible labels, return as matrix for keras.
+        Maybe rename "features_to_matrix"
+
+        Parameters
+        ----------
+        loc: dict, one entry from the list of locations and features that come out of process_text
+
+        Returns
+        --------
+        keras_inputs: dict with two keys, "label" and "matrix"
         """
-        top = entry['features']['ct_mention']
-        top_count = entry['features']['ctm_count1']
-        two =  entry['features']['ct_mention2']
-        two_count = entry['features']['ctm_count2']
-        word_vec = entry['features']['word_vec']
-        first_back = entry['features']['first_back']
-        most_alt = entry['features']['most_alt']
-        most_pop = entry['features']['most_pop']
+
+        top = loc['features']['ct_mention']
+        top_count = loc['features']['ctm_count1']
+        two =  loc['features']['ct_mention2']
+        two_count = loc['features']['ctm_count2']
+        word_vec = loc['features']['word_vec']
+        first_back = loc['features']['first_back']
+        most_alt = loc['features']['most_alt']
+        most_pop = loc['features']['most_pop']
 
         possible_labels = set([top, two, word_vec, first_back, most_alt, most_pop])
         possible_labels = [i for i in possible_labels if i]
@@ -512,10 +509,45 @@ class Geoparse:
             features = np.concatenate([x, exists, counts, right])
             X_mat.append(np.asarray(features))
 
-        return {"labels": possible_labels,
+        keras_inputs = {"labels": possible_labels,
                 "matrix" : np.asmatrix(X_mat)}
+        return keras_inputs
 
     def doc_to_guess(self, doc):
+        """NLP a doc, find its entities, get their features, and return the model's country guess.
+        Maybe use a better name.
+
+        Parameters
+        -----------
+        doc: str or spaCy
+            the document to country-resolve the entities in
+
+        Returns
+        -------
+        proced: list of dict
+            the feature output of "process_text" updated with the model's
+            estimated country for each entity.
+            E.g.:
+                {'all_confidence': array([ 0.95783567,  0.03769876,  0.00454875], dtype=float32),
+                  'all_countries': array(['SYR', 'USA', 'JAM'], dtype='<U3'),
+                  'country_conf': 0.95783567,
+                  'country_predicted': 'SYR',
+                  'features': {'ct_mention': '',
+                       'ct_mention2': '',
+                       'ctm_count1': 0,
+                       'ctm_count2': 0,
+                       'first_back': 'JAM',
+                       'maj_vote': 'SYR',
+                       'most_alt': 'USA',
+                       'most_pop': 'SYR',
+                       'word_vec': 'SYR',
+                       'wv_confid': '29.3188'},
+                  'label': 'Syria',
+                  'spans': [{'end': 26, 'start': 20}],
+                  'text': "There's fighting in Aleppo and Homs.",
+                  'word': 'Aleppo'}
+
+        """
         if not hasattr(doc, "ents"):
             doc = nlp(doc)
         proced = self.process_text(doc, require_maj=False)
@@ -540,8 +572,28 @@ class Geoparse:
         return proced
 
 
-    def format_geonames(self, res):
-        # pull out just what we want from the top geonames entry, do the admin1 formatting
+    def format_geonames(self, res, searchterm = None):
+        """Pull out just the fields we want from a geonames entry
+
+        For now: pulls out one with the most alternative
+
+        To do:
+        - switch to model picking
+        - do the admin1 formatting
+
+        Parameters
+        -----------
+        res : dict
+            ES/geonames result
+
+        searchterm : str
+            not implemented). Needed for better results picking
+
+        Returns
+        --------
+        new_res : dict
+            containing selected fields from selected geonames entry
+        """
         try:
             # take the most alternative names
             top = self.most_alternative(res, full_results=True)
@@ -571,6 +623,9 @@ class Geoparse:
 
 
     def clean_proced(self, proced):
+        """Small helper function to delete the features from the final dictionary.
+        These features are mostly interesting for debugging but clog things up otherwise.
+        """
         for loc in proced:
             try:
                 del loc['all_countries']
@@ -594,11 +649,24 @@ class Geoparse:
                 pass
         return proced
 
-    def geoparse(self, doc):
-        #print(doc)
+    def geoparse(self, doc, verbose = False):
+        """Main geoparsing function. Text to extracted, resolved entities
+
+        Parameters
+        ----------
+        doc : str (or spaCy)
+            The document to be geoparsed. Can be either raw text or already spacy processed.
+            In some cases, it makes sense to bulk parse using spacy's .pipe() before sending
+            through to Mordecai
+
+        Returns
+        -------
+        proced : list of dicts
+            Each entity gets an entry in the list, with the dictionary including geo info, spans,
+            and optionally, the input features.
+        """
         if not hasattr(doc, "ents"):
             doc = nlp(doc)
-        #print(doc)
         proced = self.doc_to_guess(doc)
         if not proced:
             print("Nothing came back from doc_to_guess...")
@@ -625,7 +693,7 @@ class Geoparse:
 
             loc['geo'] = self.format_geonames(res)
 
-        if not self.verbose:
+        if not verbose:
             proced = self.clean_proced(proced)
 
         return proced
