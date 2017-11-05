@@ -5,6 +5,7 @@ from elasticsearch_dsl.query import MultiMatch
 from elasticsearch_dsl import Search, Q
 import numpy as np
 from collections import Counter
+from functools import lru_cache
 
 from . import utilities
 
@@ -14,19 +15,21 @@ nlp = spacy.load('en_core_web_lg')
 class Geoparse:
     def __init__(self, es_ip="localhost", es_port="9200", verbose = False,
                 country_threshold = 0.8):
-        self.cache = {}
+        self.cache_size = 200
         self.cts = utilities.country_list_maker()
+        self.inv_cts = utilities.make_inv_cts(self.cts)
+        country_state_city = utilities.other_vectors()
+        self.cts.update(country_state_city)
         self.ct_nlp = utilities.country_list_nlp(self.cts)
         self.prebuilt_vec = [w.vector for w in self.ct_nlp]
         self.both_codes = utilities.make_country_nationality_list(self.cts)
-        self.inv_cts = utilities.make_inv_cts(self.cts)
         self.conn = utilities.setup_es(es_ip, es_port)
-        self.country_exact = False # flag if it detects a country
-        self.fuzzy = False # did it have to use fuzziness?
+        #self.country_exact = False # flag if it detects a country UPDATE: not currently holding per-query state like this
+        #self.fuzzy = False # did it have to use fuzziness? UPDATE: not currently holding per-query state like this
         self.model = keras.models.load_model("/Users/ahalterman/MIT/Geolocation/mordecai/mordecai/models/country_model.h5")
-        countries = pd.read_csv("nat_df.csv")
-        nationality = dict(zip(countries.nationality, countries.alpha_3_code))
-        self.both_codes = {**nationality, **self.cts}
+        #countries = pd.read_csv("nat_df.csv")
+        #nationality = dict(zip(countries.nationality, countries.alpha_3_code))
+        #self.both_codes = {**nationality, **self.cts}
         self.skip_list = utilities.make_skip_list(self.cts)
         self.training_setting = False # make this true if you want training formatted
         self.country_threshold = country_threshold # if the best guess is below this, don't return
@@ -253,7 +256,7 @@ class Geoparse:
         else:
             return False
 
-
+    @lru_cache(maxsize=self.cache_size)
     def query_geonames(self, placename):
         """
         Wrap search parameters into an elasticsearch query to the geonames index
@@ -293,16 +296,16 @@ class Geoparse:
                                          "fuzziness" : 1,
                                          "operator":   "and"},
                         }
-                self.fuzzy = True
+                #self.fuzzy = True
 
                 #print(conn.query(q).count())
                 res = self.conn.query(q)[0:50].execute()
 
 
         es_result = utilities.structure_results(res)
-        self.cache[placename] = es_result
         return es_result
 
+    @lru_cache(maxsize=self.cache_size)
     def query_geonames_country(self, placename, country):
         """
         """
@@ -328,6 +331,63 @@ class Geoparse:
         out = utilities.structure_results(res)
         return out
 
+    def feature_type_mention(self, ent):
+        """
+        Count forward 1 word from each entity, looking for defined terms.
+
+        Parameters
+        -----------
+        ent : spacy entity span
+            It has to be an entity to handle indexing in the document
+
+        Returns
+        --------
+        tuple (length 2)
+            (feature_code, feature_class) derived from explicit word usage
+
+        """
+
+        P_list = ["city", "cities", "town", "towns", "villages", "village", "settlement",
+                  "capital", "town", "towns", "neighborhood", "neighborhoods",
+                 "municipality"]
+        ADM1_list = ["province", "governorate", "state", "department", "oblast",
+                     "changwat"]
+        ADM2_list = ["district", "rayon", "amphoe", "county"]
+        A_other = ["region"]
+        AIRPORT_list = ["airport"]
+        TERRAIN_list = ["mountain", "mountains", "stream", "river"]
+
+        feature_positions = []
+        feature_class = feature_code = ""
+
+        interest_words = ent.doc[ent.end-1 : ent.end + 1] # last word or next word following
+
+        for word in interest_words: #ent.sent:
+            if ent.text in self.cts.keys():
+                feature_class = "A"
+                feature_code = "PCLI"
+            elif word.text.lower() in P_list:
+                feature_class = "P"
+                feature_code = ""
+            elif word.text.lower() in ADM1_list:
+                feature_class = "A"
+                feature_code = "ADM1"
+            elif word.text.lower() in ADM2_list:
+                feature_class = "A"
+                feature_code = "ADM2"
+            elif word.text.lower() in TERRAIN_list:
+                feature_class = "T"
+                feature_code = ""
+            elif word.text.lower() in AIRPORT_list:
+                feature_class = "S"
+                feature_code = "AIRP"
+            elif word.text.lower() in A_other:
+                feature_class = "A"
+                feature_code = ""
+
+        return (feature_class, feature_code)
+
+
 
     def process_text(self, doc, require_maj = False):
         """Create features for the country picking model
@@ -352,7 +412,7 @@ class Geoparse:
         #doc_vec = self.vector_picking(text)['country_1']
 
         # get explicit counts of country names
-        ct_mention, ctm_count1, ct_mention2, ctm_count2 = self.country_mentions(text)
+        ct_mention, ctm_count1, ct_mention2, ctm_count2 = self.country_mentions(doc)
 
         # now iterate through the entities, skipping irrelevant ones and countries
         for ent in doc.ents:
@@ -378,15 +438,14 @@ class Geoparse:
                 word_vec = ""
                 wv_confid = "0"
 
+            # look for explicit mentions of feature names
+            class_mention, code_mention = self.feature_type_mention(ent)
+
             ##### ES-based features
-            # cache search results
             try:
-                self.result = self.cache[ent.text]
-            except KeyError:
-                try:
-                    self.result = self.query_geonames(ent.text)
-                except ConnectionTimeout:
-                    self.result = ""
+                self.result = self.query_geonames(ent.text)
+            except ConnectionTimeout:
+                self.result = ""
 
             # build results-based features
             most_alt = self.most_alternative(self.result)
@@ -403,7 +462,7 @@ class Geoparse:
                                     ]).most_common()[0][0]
                     # add winning count/percent here? (both with and without missing)
             except Exception as e:
-                #print(ent, e)
+                print("Problem taking majority vote: ", ent, e)
                 maj_vote = ""
 
 
@@ -428,7 +487,7 @@ class Geoparse:
                         text_label = ""
 
                     task = {"text" : ent.sent.text,
-                            "label" : text_label,
+                            "label" : text_label, # human-readable country name
                             "word" : ent.text,
                             "spans" : [{
                                 "start" : start,
@@ -446,7 +505,9 @@ class Geoparse:
                                     "ctm_count1" : ctm_count1,
                                     "ct_mention2" : ct_mention2,
                                     "ctm_count2" : ctm_count2,
-                                    "wv_confid" : wv_confid
+                                    "wv_confid" : wv_confid,
+                                    "class_mention" : class_mention, # inferred geonames class from mentions
+                                    "code_mention" : code_mention,
                                     #"places_vec" : places_vec,
                                     #"doc_vec_sent" : doc_vec_sent
                                     } }
@@ -671,25 +732,11 @@ class Geoparse:
         if not proced:
             print("Nothing came back from doc_to_guess...")
         for loc in proced:
-            place_id = loc['word'] + "_" + loc['country_predicted']
-            # need to handle lack of key
             if loc['country_conf'] >= self.country_threshold: # shrug
-                try:
-                    res = self.cache[place_id]
-                    if res:
-                        self.cache[place_id] = res
-                except KeyError:
-                    res = self.query_geonames_country(loc['word'], loc['country_predicted'])
-                    if res:
-                        self.cache[place_id] = res
+                res = self.query_geonames_country(loc['word'], loc['country_predicted'])
             elif loc['country_conf'] < self.country_threshold:
                 res = ""
                 # if the confidence is too low, don't use the country info
-                #try:
-                #    res = self.cache[loc['word']]
-                #except KeyError:
-                #    res = self.query_geonames(i['word'])
-                #    self.cache[loc['word']] = res
 
             loc['geo'] = self.format_geonames(res)
 

@@ -16,47 +16,6 @@ import spacy
 nlp = spacy.load('en_core_web_lg')
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(description='Mordecai Geolocation')
-    parser._optionals.title = 'Options'
-    parser.add_argument('-c', '--config-file',
-                        help='Specify path to config file.',
-                        type=str,
-                        required=False,
-                        default="")
-    parser.add_argument('-p', '--port',
-                        help='Specify port to listen on.',
-                        type=int,
-                        required=False,
-                        default=5000)
-    parser.add_argument('-eh', '--elasticsearch-host',
-                        help='Specify elasticsearch host.',
-                        type=str,
-                        required=False,
-                        default='elastic')
-    parser.add_argument('-ep', '--elasticsearch-port',
-                        help='Specify elasticsearch port.',
-                        type=str,
-                        required=False,
-                        default='9200')
-    parser.add_argument('-w', '--w2v-model',
-                        help='Specify path to w2v model.',
-                        type=str,
-                        required=False,
-                        default="/usr/src/data/GoogleNews-vectors-negative300.bin.gz")
-    parser.add_argument('-md', '--mitie-dir',
-                        help='Specify MITIE directory.',
-                        type=str,
-                        required=False,
-                        default="/usr/src/MITIE/mitielib")
-    parser.add_argument('-mn', '--mitie-ner',
-                        help='Specify path to MITIE NER model.',
-                        type=str,
-                        required=False,
-                        default="/usr/src/data/MITIE-models/english/ner_model.dat")
-    return parser.parse_args()
-
-
 def country_list_maker():
     cts = {"Afghanistan":"AFG", "Åland Islands":"ALA", "Albania":"ALB", "Algeria":"DZA",
     "American Samoa":"ASM", "Andorra":"AND", "Angola":"AGO", "Anguilla":"AIA",
@@ -73,8 +32,7 @@ def country_list_maker():
     "Canada":"CAN","Cape Verde":"CPV", "Cayman Islands":"CYM",
     "Central African Republic":"CAF", "Chad":"TCD", "Chile":"CHL", "China":"CHN",
     "Cocos Islands":"CCK", "Colombia":"COL",
-    "Comoros":"COM", "Congo Brazzaville":"COG", "Congo Kinshasa":"COD",
-    "Congo":"COG", "Cook Islands":"COK",
+    "Comoros":"COM",     "Republic of Congo":"COG", "Cook Islands":"COK",
     "Costa Rica":"CRI", "Cote Ivoire":"CIV", "Ivory Coast":"CIV","Croatia":"HRV", "Cuba":"CUB",
     "Curaçao":"CUW", "Cyprus":"CYP", "Czech Republic":"CZE", "Denmark":"DNK",
     "Djibouti":"DJI", "Dominica":"DMA", "Dominican Republic":"DOM", "Democratic Republic of Congo" : "COD",
@@ -105,7 +63,7 @@ def country_list_maker():
     "Niger":"NER", "Nigeria":"NGA", "Niue":"NIU", "North Korea":"PRK",
     "Northern Ireland":"IRL", "Northern Mariana Islands":"MNP",
     "Norway":"NOR", "Oman":"OMN", "Pakistan":"PAK",
-    "Palau":"PLW", "Palestinian Territories":"PSE", "Palestine":"PSE","Panama":"PAN", "Papua New Guinea":"PNG",
+    "Palau":"PLW", "Palestine":"PSE","Panama":"PAN", "Papua New Guinea":"PNG",
     "Paraguay":"PRY", "Peru":"PER", "Philippines":"PHL", "Pitcairn Islands":"PCN",
     "Poland":"POL", "Portugal":"PRT", "Puerto Rico":"PRI",
     "Qatar":"QAT", "Réunion":"REU", "Romania":"ROU", "Russia":"RUS",
@@ -126,14 +84,47 @@ def country_list_maker():
     "Turkmenistan":"TKM", "Turks Caicos Islands":"TCA", "Tuvalu":"TUV", "U.S. Minor Outlying Islands":"UMI",
     "Virgin Islands":"VIR", "Uganda":"UGA",
     "Ukraine":"UKR", "United Arab Emirates":"ARE", "United Kingdom":"GBR",
-    "UK":"GBR", "United States":"USA", "USA":"USA", "America":"USA",
-    "Uruguay":"URY", "Uzbekistan":"UZB", "Vanuatu":"VUT", "Vatican":"VAT", "Venezuela":"VEN",
+    "United States":"USA",    "Uruguay":"URY", "Uzbekistan":"UZB", "Vanuatu":"VUT", "Vatican":"VAT",
+    "Venezuela":"VEN",
     "Vietnam":"VNM", "Wallis Futuna":"WLF",
-    "Western Sahara":"ESH", "Yemen":"YEM", "Zambia":"ZMB", "Zimbabwe":"ZWE",
-    "New York" : "USA", "Maine" : "USA", "Oklahoma" : "USA", "Atlanta" : "USA", "Washington" : "USA",
-    "California" : "USA", "Chicago" : "USA", "Illinois" : "USA", "Beijing" : "CHN",
-    "Tbilisi" : "GEO", "Gaza":"PSE",}
+    "Western Sahara":"ESH", "Yemen":"YEM", "Zambia":"ZMB", "Zimbabwe":"ZWE"}
+
     return cts
+
+
+def other_vectors():
+    # We want the advantage of having more defined vector terms to help
+    # matching, but we also want to make sure that when we invert the
+    # dictionary for labeling, each ISO code gets resolved to a single country
+    # name, as opposed to an alternative name, city, or state.
+    other_vecs = {
+    # alt. country names
+    "UK":"GBR",  "USA":"USA", "America":"USA",  "Palestinian Territories":"PSE",
+    "Congo Brazzaville":"COG", "Congo Kinshasa":"COD", "Wales" : "GBR",
+    "Scotland" : "GBR", "Britain" : "GBR",
+    # US states
+    "Alabama" :  "USA", "Alaska" : "USA", "Arizona" : "USA", "Arkansas" : "USA",
+    "California" : "USA", "Colorado" : "USA", "Connecticut" : "USA", "Delaware" : "USA",
+    "Florida" : "USA",
+    #    "Georgia" : "USA",  <----- hmmmm
+    "Hawaii" : "USA", "Idaho" : "USA",
+    "Illinois" : "USA", "Indiana" : "USA", "Iowa" : "USA", "Kansas" : "USA",
+    "Kentucky" : "USA", "Louisiana" : "USA", "Maine" : "USA",
+    "Maryland" : "USA", "Massachusetts" : "USA", "Michigan" : "USA",
+    "Minnesota" : "USA", "Mississippi" : "USA", "Missouri" : "USA",
+    "Montana" : "USA", "Nebraska" : "USA", "Nevada" : "USA", "New  Hampshire" : "USA",
+    "New Jersey" : "USA", "New Mexico" : "USA", "New York" : "USA",
+    "North Carolina" : "USA", "North Dakota" : "USA", "Ohio" : "USA",
+    "Oklahoma" : "USA", "Oregon" : "USA", "Pennsylvania" : "USA",
+    "Rhode Island" : "USA", "South Carolina" : "USA", "South Dakota" : "USA",
+    "Tennessee" : "USA", "Texas" : "USA", "Utah" : "USA",
+    "Vermont" : "USA", "Virginia" : "USA", "Washington" : "USA",
+    "West Virginia" : "USA", "Wisconsin" : "USA", "Wyoming" : "USA",
+    # cities
+    "Beijing" : "CHN", "Chicago" : "USA",
+    "Tbilisi" : "GEO", "Gaza":"PSE"}
+    return other_vecs
+
 
 def make_skip_list(cts):
     special_terms = ["Europe", "West", "the West", "South Pacific", "Gulf of Mexico", "Atlantic",
@@ -145,13 +136,14 @@ def make_skip_list(cts):
                      "South", "Latin America", "Southeast Asia", "Western Pacific", "South Asia",
                     "Persian Gulf", "Central Europe", "Western Hemisphere", "Western Europe",
                     "European Union (E.U.)", "EU", "European Union", "E.U.", "Asia-Pacific",
-                 "Europe", "Caribbean"
+                 "Europe", "Caribbean", "US", "U.S."
                 ]
 
-    # maybe remove these? Sometimes they mean something, though "Northwest Provice"
-    other = ["Northeast"]
+    # Some words are recurring spacy problems...
+    spacy_problems = ["Kurd", "Qur'an"]
 
-    skip_list = list(cts.keys()) + special_terms
+    #skip_list = list(cts.keys()) + special_terms
+    skip_list =  special_terms + spacy_problems
     skip_list = set(skip_list)
     return skip_list
 
@@ -173,6 +165,9 @@ def make_country_nationality_list(cts):
 
 
 def make_inv_cts(cts):
+    """
+    cts is e.g. {"Germany" : "DEU"}. inv_cts is the inverse: {"DEU" : "Germany"}
+    """
     inv_ct = {}
     for old_k, old_v in cts.items():
         if old_v not in inv_ct.keys():
