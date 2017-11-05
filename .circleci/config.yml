@@ -44,7 +44,7 @@ jobs:
           name: run tests
           command: |
             . venv/bin/activate
-            python py.test
+            python py.test mordecai
 
       - store_artifacts:
           path: test-reports

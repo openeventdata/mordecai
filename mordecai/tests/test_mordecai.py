@@ -8,9 +8,6 @@ from ..geoparse import Geoparse
 import spacy
 nlp = spacy.load('en_core_web_lg')
 
-# switch to pytest fixtures eventually to speed tests
-#fm = FeatureMaker()
-
 def test_fm_values_exist(geo):
     assert hasattr(geo, "cts")
     assert hasattr(geo, "both_codes")
@@ -57,20 +54,20 @@ def test_cts(geo):
 def test_syria(geo):
     doc = "There's fighting in Aleppo and Homs."
     loc = geo.doc_to_guess(doc)
-    assert loc[0]['label'] == "SYR"
-    assert loc[1]['label'] == "SYR"
+    assert loc[0]['country_predicted'] == "SYR"
+    assert loc[1]['country_predicted'] == "SYR"
 
 def test_germany(geo):
     doc = "There's fighting in Berlin and Hamburg."
     loc = geo.doc_to_guess(doc)
-    assert loc[0]['label'] == "DEU"
-    assert loc[1]['label'] == "DEU"
+    assert loc[0]['country_predicted'] == "DEU"
+    assert loc[1]['country_predicted'] == "DEU"
 
 def test_two_countries(geo):
     doc = "There's fighting in Aleppo and talking in Geneva."
     loc = geo.geoparse(doc)
-    assert loc[0]['label'] == "SYR"
-    assert loc[1]['label'] == "CHE"
+    assert loc[0]['country_predicted'] == "SYR"
+    assert loc[1]['country_predicted'] == "CHE"
 
 def test_no_loc(geo):
     doc = "There's fighting in Ajnsdgjb."
