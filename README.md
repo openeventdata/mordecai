@@ -1,5 +1,3 @@
-[![Circle CI](https://circleci.com/gh/openeventdata/mordecai.svg?style=svg)](https://circleci.com/gh/openeventdata/mordecai)
-
 ![](paper/mordecai_geoparsing.png)
 
 Full text geoparsing as a Python library. Extract the place names from a piece of
@@ -88,15 +86,17 @@ Example usage
 Tests
 -----
 
-`mordecai` currently includes a few unit tests. To run the tests:
+`mordecai` includes a few unit tests. To run the tests:
 
 ```
 cd resources
 py.test
 ```
 
-The tests currently require access to a running Elastic/Geonames service to
+The tests require access to a running Elastic/Geonames service to
 complete. 
+
+The current CI build status is: [![Circle CI](https://circleci.com/gh/openeventdata/mordecai.svg?style=svg)](https://circleci.com/gh/openeventdata/mordecai)
 
 Acknowledgements
 ----------------
@@ -112,6 +112,26 @@ award number SBE-SMA-1539302. Any opinions, findings, and conclusions or
 recommendations expressed in this material are those of the authors and do not
 necessarily reflect the views of DARPA, ARO, Minerva, NSF, or the U.S.
 government.
+
+Citing
+------
+
+If you use this software in academic work, please cite as 
+
+Halterman, (2017). Mordecai: Full Text Geoparsing and Event Geocoding. *Journal of Open Source
+Software*, 2(9), 91, doi:10.21105/joss.00091
+
+```
+@article{halterman2017mordecai,
+  title={Mordecai: Full Text Geoparsing and Event Geocoding},
+  author={Halterman, Andrew},
+  journal={The Journal of Open Source Software},
+  volume={2},
+  number={9},
+  year={2017},
+  doi={10.21105/joss.00091}
+}
+```
 
 Contributing
 ------------
