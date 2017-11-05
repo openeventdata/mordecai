@@ -5,9 +5,6 @@ import os
 import sys
 import json
 import numpy
-import mitie
-import pprint
-import argparse
 import pandas as pd
 from elasticsearch_dsl import Search, Q
 from elasticsearch import Elasticsearch
@@ -195,32 +192,7 @@ def read_in_admin1(filepath):
     return admin1_dict
 
 
-def get_admin1(country_code2, admin1_code, admin1_dict):
-    """
-    Convert a geonames admin1 code to the associated place name.
-    Parameters
-    ---------
-    country_code2: string
-                   The two character country code
-    admin1_code: string
-                 The admin1 code to be converted. (Admin1 is the highest
-                 subnational political unit, state/region/provice/etc.
-    admin1_dict: dictionary
-                 The dictionary containing the country code + admin1 code
-                 as keys and the admin1 names as values.
-    Returns
-    ------
-    admin1_name: string
-                 The admin1 name. If none is found, return "NA".
-    """
-    lookup_key = ".".join([country_code2, admin1_code])
-    try:
-        admin1_name = admin1_dict[lookup_key]
-        return admin1_name
-    except KeyError:
-        m = "No admin code found for country {} and code {}".format(country_code2, admin1_code)
-        print(m)
-        return "NA"
+
 
 def structure_results(res):
     out = {'hits': {'hits': []}}

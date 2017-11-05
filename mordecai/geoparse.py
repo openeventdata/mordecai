@@ -15,7 +15,6 @@ nlp = spacy.load('en_core_web_lg')
 class Geoparse:
     def __init__(self, es_ip="localhost", es_port="9200", verbose = False,
                 country_threshold = 0.8):
-        self.cache_size = 200
         self.cts = utilities.country_list_maker()
         self.inv_cts = utilities.make_inv_cts(self.cts)
         country_state_city = utilities.other_vectors()
@@ -23,6 +22,7 @@ class Geoparse:
         self.ct_nlp = utilities.country_list_nlp(self.cts)
         self.prebuilt_vec = [w.vector for w in self.ct_nlp]
         self.both_codes = utilities.make_country_nationality_list(self.cts)
+        self.admin1_dict = utilities.read_in_admin1("/Users/ahalterman/MIT/Geolocation/mordecai/mordecai/data/admin1CodesASCII.json")
         self.conn = utilities.setup_es(es_ip, es_port)
         #self.country_exact = False # flag if it detects a country UPDATE: not currently holding per-query state like this
         #self.fuzzy = False # did it have to use fuzziness? UPDATE: not currently holding per-query state like this
@@ -70,10 +70,6 @@ class Geoparse:
             two = ""
             two_count = 0
 
-        #countries = {"country_1" : top,
-        #             "freq_1" : top_count,
-        #             "country_2": two,
-        #             "freq_2" : two_count}
         countries = (top, top_count, two, two_count)
         return countries
 
@@ -197,8 +193,6 @@ class Geoparse:
         country_picking: dict, with top two countries (ISO codes) and two measures of
                 confidence for the first choice.
         """
-        #if not hasattr(text, "vector"):
-        #    text = nlp(text)
         try:
             simils = np.dot(self.prebuilt_vec, text.vector)
         except Exception as e:
@@ -211,12 +205,8 @@ class Geoparse:
         best_index = ranks[0]
         confid = simils.max()
         confid2 = simils[ranks[0]] - simils[ranks[1]]
-        #print(confid)
-        #print(confid2)
         if confid == 0 or confid2 == 0:
-            #print("Weird word??")
             return ""
-        #print(cts[str(ct_nlp[ranks[1]])])
         country_code = self.cts[str(self.ct_nlp[ranks[0]])]
         country_picking = {"country_1" : country_code,
                 "confid_a" : confid,
@@ -256,7 +246,7 @@ class Geoparse:
         else:
             return False
 
-    @lru_cache(maxsize=self.cache_size)
+    @lru_cache(maxsize=200)
     def query_geonames(self, placename):
         """
         Wrap search parameters into an elasticsearch query to the geonames index
@@ -280,7 +270,7 @@ class Geoparse:
             self.country_exact = True
 
         else:
-            # first, try for an exact phrase match
+            # second, try for an exact phrase match
             q = {"multi_match": {"query": placename,
                                  "fields": ['name^5', 'asciiname^5', 'alternativenames'],
                                 "type" : "phrase"}}
@@ -296,16 +286,14 @@ class Geoparse:
                                          "fuzziness" : 1,
                                          "operator":   "and"},
                         }
-                #self.fuzzy = True
-
-                #print(conn.query(q).count())
+                #self.fuzzy = True  # idea was to preserve this info as a feature, but not using state like this
                 res = self.conn.query(q)[0:50].execute()
 
 
         es_result = utilities.structure_results(res)
         return es_result
 
-    @lru_cache(maxsize=self.cache_size)
+    @lru_cache(maxsize=200)
     def query_geonames_country(self, placename, country):
         """
         """
@@ -452,7 +440,6 @@ class Geoparse:
             most_common = self.most_common_geo(self.result)
             most_pop = self.most_population(self.result)
             first_back, second_back = self.get_first_back(self.result)
-            #print(most_alt)
 
             try:
                 maj_vote = Counter([word_vec, most_alt,
@@ -460,61 +447,56 @@ class Geoparse:
                                     ct_mention
                                     #doc_vec_sent, doc_vec
                                     ]).most_common()[0][0]
-                    # add winning count/percent here? (both with and without missing)
             except Exception as e:
                 print("Problem taking majority vote: ", ent, e)
                 maj_vote = ""
 
 
             if not maj_vote:
-                #print("No majority vote for ", ent, [word_vec, most_alt, first_back, most_pop])
                 maj_vote = ""
 
             # We only want all this junk for the labeling task. We just want to straight to features
             # and the model when in production.
 
-            if True: #self.training_setting == True:
-                # maybe skip later if it's slow...
-                #if not maj_vote and require_maj == True:
-                #    continue
-                try:
-                    start = ent.start_char - ent.sent.start_char
-                    end = ent.end_char - ent.sent.start_char
-                    iso_label = maj_vote
-                    try:
-                        text_label = self.inv_cts[iso_label]
-                    except KeyError:
-                        text_label = ""
 
-                    task = {"text" : ent.sent.text,
-                            "label" : text_label, # human-readable country name
-                            "word" : ent.text,
-                            "spans" : [{
-                                "start" : start,
-                                "end" : end,
-                                } # make sure to rename for Prodigy
-                                    ],
-                            "features" : {
-                                    "maj_vote" : iso_label,
-                                    "word_vec" : word_vec,
-                                    "first_back" : first_back,
-                                    #"doc_vec" : doc_vec,
-                                    "most_alt" : most_alt,
-                                    "most_pop" : most_pop,
-                                    "ct_mention" : ct_mention,
-                                    "ctm_count1" : ctm_count1,
-                                    "ct_mention2" : ct_mention2,
-                                    "ctm_count2" : ctm_count2,
-                                    "wv_confid" : wv_confid,
-                                    "class_mention" : class_mention, # inferred geonames class from mentions
-                                    "code_mention" : code_mention,
-                                    #"places_vec" : places_vec,
-                                    #"doc_vec_sent" : doc_vec_sent
-                                    } }
-                    task_list.append(task)
-                except Exception as e:
-                    print(ent.text,)
-                    print(e)
+            try:
+                start = ent.start_char - ent.sent.start_char
+                end = ent.end_char - ent.sent.start_char
+                iso_label = maj_vote
+                try:
+                    text_label = self.inv_cts[iso_label]
+                except KeyError:
+                    text_label = ""
+
+                task = {"text" : ent.sent.text,
+                        "label" : text_label, # human-readable country name
+                        "word" : ent.text,
+                        "spans" : [{
+                            "start" : start,
+                            "end" : end,
+                            } # make sure to rename for Prodigy
+                                ],
+                        "features" : {
+                                "maj_vote" : iso_label,
+                                "word_vec" : word_vec,
+                                "first_back" : first_back,
+                                #"doc_vec" : doc_vec,
+                                "most_alt" : most_alt,
+                                "most_pop" : most_pop,
+                                "ct_mention" : ct_mention,
+                                "ctm_count1" : ctm_count1,
+                                "ct_mention2" : ct_mention2,
+                                "ctm_count2" : ctm_count2,
+                                "wv_confid" : wv_confid,
+                                "class_mention" : class_mention, # inferred geonames class from mentions
+                                "code_mention" : code_mention,
+                                #"places_vec" : places_vec,
+                                #"doc_vec_sent" : doc_vec_sent
+                                } }
+                task_list.append(task)
+            except Exception as e:
+                print(ent.text,)
+                print(e)
         return task_list # rename this var
 
     # Two modules that call `process_text`:
@@ -571,7 +553,7 @@ class Geoparse:
             X_mat.append(np.asarray(features))
 
         keras_inputs = {"labels": possible_labels,
-                "matrix" : np.asmatrix(X_mat)}
+                        "matrix" : np.asmatrix(X_mat)}
         return keras_inputs
 
     def doc_to_guess(self, doc):
@@ -632,6 +614,32 @@ class Geoparse:
 
         return proced
 
+    def get_admin1(self, country_code2, admin1_code):
+        """
+        Convert a geonames admin1 code to the associated place name.
+        Parameters
+        ---------
+        country_code2: string
+                       The two character country code
+        admin1_code: string
+                     The admin1 code to be converted. (Admin1 is the highest
+                     subnational political unit, state/region/provice/etc.
+        admin1_dict: dictionary
+                     The dictionary containing the country code + admin1 code
+                     as keys and the admin1 names as values.
+        Returns
+        ------
+        admin1_name: string
+                     The admin1 name. If none is found, return "NA".
+        """
+        lookup_key = ".".join([country_code2, admin1_code])
+        try:
+            admin1_name = self.admin1_dict[lookup_key]
+            return admin1_name
+        except KeyError:
+            print("No admin code found for country {} and code {}".format(country_code2, admin1_code))
+            return "NA"
+
 
     def format_geonames(self, res, searchterm = None):
         """Pull out just the fields we want from a geonames entry
@@ -659,7 +667,7 @@ class Geoparse:
             # take the most alternative names
             top = self.most_alternative(res, full_results=True)
             lat, lon = top['coordinates'].split(",")
-            new_res = {"admin1" : "to do",
+            new_res = {"admin1" : self.get_admin1(top['country_code2'], top['admin1_code']),
                   "lat" : lat,
                   "lon" : lon,
                   "country_code3" : top["country_code3"],
@@ -669,9 +677,10 @@ class Geoparse:
                    "feature_code" : top["feature_code"]}
             return new_res
         except (IndexError, TypeError):
-            # two conditions: 1. there are no results for some reason (Index)
+            # two conditions for these errors:
+            # 1. there are no results for some reason (Index)
             # 2. res is set to "" because the country model was below the thresh
-            new_res = {"admin1" : "to do",
+            new_res = {"admin1" : "",
                   "lat" : "",
                   "lon" : "",
                   "country_code3" : "",
@@ -685,7 +694,7 @@ class Geoparse:
 
     def clean_proced(self, proced):
         """Small helper function to delete the features from the final dictionary.
-        These features are mostly interesting for debugging but clog things up otherwise.
+        These features are mostly interesting for debugging but won't be relevant for most users.
         """
         for loc in proced:
             try:
