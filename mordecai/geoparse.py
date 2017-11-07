@@ -27,7 +27,8 @@ class Geoparse:
         self.conn = utilities.setup_es(es_ip, es_port)
         #self.country_exact = False # flag if it detects a country UPDATE: not currently holding per-query state like this
         #self.fuzzy = False # did it have to use fuzziness? UPDATE: not currently holding per-query state like this
-        self.model = keras.models.load_model("/Users/ahalterman/MIT/Geolocation/mordecai/mordecai/models/country_model.h5")
+        #self.model = keras.models.load_model("/Users/ahalterman/MIT/Geolocation/mordecai/mordecai/models/country_model.h5")
+        self.model = keras.models.load_model("/Users/ahalterman/MIT/Geolocation/mordecai/mordecai/models/country_model_multi.h5")
         #countries = pd.read_csv("nat_df.csv")
         #nationality = dict(zip(countries.nationality, countries.alpha_3_code))
         #self.both_codes = {**nationality, **self.cts}
@@ -355,7 +356,7 @@ class Geoparse:
         interest_words = ent.doc[ent.end-1 : ent.end + 1] # last word or next word following
 
         for word in interest_words: #ent.sent:
-            if ent.text in self.cts.keys():
+            if ent.text in self.just_cts.keys():
                 feature_class = "A"
                 feature_code = "PCLI"
             elif word.text.lower() in P_list:
@@ -428,7 +429,7 @@ class Geoparse:
             vp = self.vector_picking(ent)
             try:
                 word_vec = vp['country_1']
-                wv_confid = str(vp['confid_a'])
+                wv_confid = float(vp['confid_a'])
             except TypeError:
                 # no idea why this comes up
                 word_vec = ""
@@ -468,15 +469,15 @@ class Geoparse:
 
 
             try:
-                start = ent.start_char - ent.sent.start_char
-                end = ent.end_char - ent.sent.start_char
+                start = ent.start_char# - ent.sent.start_char
+                end = ent.end_char# - ent.sent.start_char
                 iso_label = maj_vote
                 try:
                     text_label = self.inv_cts[iso_label]
                 except KeyError:
                     text_label = ""
 
-                task = {"text" : ent.sent.text,
+                task = {"text" : ent.doc.text,#sent.text,
                         "label" : text_label, # human-readable country name
                         "word" : ent.text,
                         "spans" : [{
@@ -514,19 +515,11 @@ class Geoparse:
     #    features for updating the model.
 
 
-    def features_to_matrix(self, loc):
+    def ent_to_matrix(self, loc, possible_labels):
+        """For one entry in the features list, create a matrix form of the data.
+
+        Unfortuately, the features are hardcoded here.
         """
-        Create features for all possible labels, return as matrix for keras.
-
-        Parameters
-        ----------
-        loc: dict, one entry from the list of locations and features that come out of process_text
-
-        Returns
-        --------
-        keras_inputs: dict with two keys, "label" and "matrix"
-        """
-
         top = loc['features']['ct_mention']
         top_count = loc['features']['ctm_count1']
         two =  loc['features']['ct_mention2']
@@ -535,9 +528,6 @@ class Geoparse:
         first_back = loc['features']['first_back']
         most_alt = loc['features']['most_alt']
         most_pop = loc['features']['most_pop']
-
-        possible_labels = set([top, two, word_vec, first_back, most_alt, most_pop])
-        possible_labels = [i for i in possible_labels if i]
 
         X_mat = []
 
@@ -548,20 +538,52 @@ class Geoparse:
 
             # get missing values
             exists = inputs != ""
-            exists = np.asarray((exists * 2) - 1)
+            exists = np.asarray((exists * 2) - 1) # convert to -1, 1
 
             counts = np.asarray([top_count, two_count]) # cludgy, should be up with "inputs"
-            right = np.asarray([top, two]) == label
-            right = right*2 - 1
-            right[counts == 0] = 0
+            mention = np.asarray([top, two]) == label
+            mention = mention*2 - 1
+            mention[counts == 0] = 0
 
             # get correct values
-            features = np.concatenate([x, exists, counts, right])
+            features = np.concatenate([x, exists, counts, mention])
             X_mat.append(np.asarray(features))
 
-        keras_inputs = {"labels": possible_labels,
-                        "matrix" : np.asmatrix(X_mat)}
-        return keras_inputs
+        X_mat = np.asmatrix(X_mat)
+        return X_mat
+
+
+    def ent_list_to_matrix(self, ent_list):
+        """Update all entries in a feature list with the matrix form, including for left and right neighbors.
+        """
+        iso_codes = geo.inv_cts.keys()
+        possible_labels = []
+        for ent in ent_list:
+            for f in ent['features'].values():
+                if f in iso_codes:
+                    possible_labels.append(f)
+        possible_labels = np.unique(possible_labels)
+
+        null_matrix = np.zeros((len(possible_labels), 12)) # hardcoded feature length!!
+
+        for n, ent in enumerate(ent_list):
+            #print(ent['word'])
+            main_X = self.ent_to_matrix(ent, possible_labels)
+            if n - 1 < 0:
+                left_X = null_matrix
+            else:
+                left_X = self.ent_to_matrix(ent_list[n-1], possible_labels)
+            try:
+                right_X = self.ent_to_matrix(ent_list[n+1], possible_labels)
+            except IndexError:
+                right_X = null_matrix
+
+            all_X = np.hstack((main_X, left_X, right_X))
+
+            ent['matrix'] = all_X
+            ent['labels'] = possible_labels
+
+        return ent_list
 
     def doc_to_guess(self, doc):
         """NLP a doc, find its entities, get their features, and return the model's country guess.
@@ -604,21 +626,18 @@ class Geoparse:
         if not proced:
             print("Nothing came back from process_text")
         feat_list = []
-        # for each location...
+        proced = self.ent_list_to_matrix(proced)
+
         for loc in proced:
-            feat = self.features_to_matrix(loc)
-            feat_list.append(feat)
-            # for each potential country...
-            for n, i in enumerate(feat_list):
-                labels = i['labels']
-                try:
-                    prediction = self.model.predict(i['matrix']).transpose()[0]
-                    ranks = prediction.argsort()[::-1]
-                    labels = np.asarray(labels)[ranks]
-                    prediction = prediction[ranks]
-                except ValueError:
-                    prediction = np.array([0])
-                    labels = np.array([""])
+            labels = loc['labels']
+            try:
+                prediction = self.model.predict(loc['matrix']).transpose()[0]
+                ranks = prediction.argsort()[::-1]
+                labels = np.asarray(labels)[ranks]
+                prediction = prediction[ranks]
+            except ValueError:
+                prediction = np.array([0])
+                labels = np.array([""])
             loc['country_predicted'] = labels[0]
             loc['country_conf'] = prediction[0]
             loc['all_countries'] = labels
@@ -711,6 +730,10 @@ class Geoparse:
         for loc in proced:
             try:
                 del loc['all_countries']
+            except KeyError:
+                pass
+            try:
+                del loc['matrix']
             except KeyError:
                 pass
             try:
