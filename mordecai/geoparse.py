@@ -27,8 +27,8 @@ class Geoparse:
         self.conn = utilities.setup_es(es_ip, es_port)
         #self.country_exact = False # flag if it detects a country UPDATE: not currently holding per-query state like this
         #self.fuzzy = False # did it have to use fuzziness? UPDATE: not currently holding per-query state like this
-        #self.model = keras.models.load_model("/Users/ahalterman/MIT/Geolocation/mordecai/mordecai/models/country_model.h5")
-        self.model = keras.models.load_model("/Users/ahalterman/MIT/Geolocation/mordecai/mordecai/models/country_model_multi.h5")
+        self.model = keras.models.load_model("/Users/ahalterman/MIT/Geolocation/mordecai/mordecai/models/country_model.h5")
+        #self.model = keras.models.load_model("/Users/ahalterman/MIT/Geolocation/mordecai/mordecai/models/country_model_multi.h5")
         #countries = pd.read_csv("nat_df.csv")
         #nationality = dict(zip(countries.nationality, countries.alpha_3_code))
         #self.both_codes = {**nationality, **self.cts}
@@ -514,6 +514,53 @@ class Geoparse:
     #  A third, standalone function will convert the labeled JSON from Prodigy into
     #    features for updating the model.
 
+    def features_to_matrix(self, loc):
+        """
+        Create features for all possible labels, return as matrix for keras.
+        Parameters
+        ----------
+        loc: dict, one entry from the list of locations and features that come out of process_text
+        Returns
+        --------
+        keras_inputs: dict with two keys, "label" and "matrix"
+        """
+
+        top = loc['features']['ct_mention']
+        top_count = loc['features']['ctm_count1']
+        two =  loc['features']['ct_mention2']
+        two_count = loc['features']['ctm_count2']
+        word_vec = loc['features']['word_vec']
+        first_back = loc['features']['first_back']
+        most_alt = loc['features']['most_alt']
+        most_pop = loc['features']['most_pop']
+
+        possible_labels = set([top, two, word_vec, first_back, most_alt, most_pop])
+        possible_labels = [i for i in possible_labels if i]
+
+        X_mat = []
+
+        for label in possible_labels:
+            inputs  = np.array([word_vec, first_back, most_alt, most_pop])
+            x = inputs == label
+            x = np.asarray((x * 2) - 1) # convert to -1, 1
+
+            # get missing values
+            exists = inputs != ""
+            exists = np.asarray((exists * 2) - 1)
+
+            counts = np.asarray([top_count, two_count]) # cludgy, should be up with "inputs"
+            right = np.asarray([top, two]) == label
+            right = right*2 - 1
+            right[counts == 0] = 0
+
+            # get correct values
+            features = np.concatenate([x, exists, counts, right])
+            X_mat.append(np.asarray(features))
+
+        keras_inputs = {"labels": possible_labels,
+                        "matrix" : np.asmatrix(X_mat)}
+        return keras_inputs
+
 
     def ent_to_matrix(self, loc, possible_labels):
         """For one entry in the features list, create a matrix form of the data.
@@ -555,8 +602,10 @@ class Geoparse:
 
     def ent_list_to_matrix(self, ent_list):
         """Update all entries in a feature list with the matrix form, including for left and right neighbors.
+
+        Not used currently (see #27), but updating the ent list is a nice way to keep things organized.
         """
-        iso_codes = geo.inv_cts.keys()
+        iso_codes = self.inv_cts.keys()
         possible_labels = []
         for ent in ent_list:
             for f in ent['features'].values():
@@ -626,18 +675,25 @@ class Geoparse:
         if not proced:
             print("Nothing came back from process_text")
         feat_list = []
-        proced = self.ent_list_to_matrix(proced)
+        #proced = self.ent_list_to_matrix(proced)
 
         for loc in proced:
-            labels = loc['labels']
-            try:
-                prediction = self.model.predict(loc['matrix']).transpose()[0]
-                ranks = prediction.argsort()[::-1]
-                labels = np.asarray(labels)[ranks]
-                prediction = prediction[ranks]
-            except ValueError:
-                prediction = np.array([0])
-                labels = np.array([""])
+            feat = self.features_to_matrix(loc)
+            #labels = loc['labels']
+            feat_list.append(feat)
+            #try:
+            # for each potential country...
+            for n, i in enumerate(feat_list):
+                labels = i['labels']
+                try:
+                    prediction = self.model.predict(i['matrix']).transpose()[0]
+                    ranks = prediction.argsort()[::-1]
+                    labels = np.asarray(labels)[ranks]
+                    prediction = prediction[ranks]
+                except ValueError:
+                    prediction = np.array([0])
+                    labels = np.array([""])
+
             loc['country_predicted'] = labels[0]
             loc['country_conf'] = prediction[0]
             loc['all_countries'] = labels
