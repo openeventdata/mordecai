@@ -84,7 +84,10 @@ def country_list_maker():
     "United States":"USA",    "Uruguay":"URY", "Uzbekistan":"UZB", "Vanuatu":"VUT", "Vatican":"VAT",
     "Venezuela":"VEN",
     "Vietnam":"VNM", "Wallis Futuna":"WLF",
-    "Western Sahara":"ESH", "Yemen":"YEM", "Zambia":"ZMB", "Zimbabwe":"ZWE"}
+    "Western Sahara":"ESH", "Yemen":"YEM", "Zambia":"ZMB", "Zimbabwe":"ZWE",
+    "UK":"GBR",  "USA":"USA", "America":"USA",  "Palestinian Territories":"PSE",
+    "Congo Brazzaville":"COG", "Congo Kinshasa":"COD", "Wales" : "GBR",
+    "Scotland" : "GBR", "Britain" : "GBR",}
 
     return cts
 
@@ -96,9 +99,6 @@ def other_vectors():
     # name, as opposed to an alternative name, city, or state.
     other_vecs = {
     # alt. country names
-    "UK":"GBR",  "USA":"USA", "America":"USA",  "Palestinian Territories":"PSE",
-    "Congo Brazzaville":"COG", "Congo Kinshasa":"COD", "Wales" : "GBR",
-    "Scotland" : "GBR", "Britain" : "GBR",
     # US states
     "Alabama" :  "USA", "Alaska" : "USA", "Arizona" : "USA", "Arkansas" : "USA",
     "California" : "USA", "Colorado" : "USA", "Connecticut" : "USA", "Delaware" : "USA",
@@ -124,6 +124,8 @@ def other_vectors():
 
 
 def make_skip_list(cts):
+    # maybe make these non-country searches but don't discard, at least for
+    # some (esp. bodies of water)
     special_terms = ["Europe", "West", "the West", "South Pacific", "Gulf of Mexico", "Atlantic",
                     "the Black Sea", "Black Sea", "North America", "Mideast", "Middle East",
                      "the Middle East", "Asia", "the Caucasus", "Africa",
@@ -133,7 +135,8 @@ def make_skip_list(cts):
                      "South", "Latin America", "Southeast Asia", "Western Pacific", "South Asia",
                     "Persian Gulf", "Central Europe", "Western Hemisphere", "Western Europe",
                     "European Union (E.U.)", "EU", "European Union", "E.U.", "Asia-Pacific",
-                 "Europe", "Caribbean", "US", "U.S."
+                 "Europe", "Caribbean", "US", "U.S.", "Persian Gulf", "West Africa", "North", "East",
+                     "South", "West"
                 ]
 
     # Some words are recurring spacy problems...

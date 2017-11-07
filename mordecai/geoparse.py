@@ -16,6 +16,7 @@ class Geoparse:
     def __init__(self, es_ip="localhost", es_port="9200", verbose = False,
                 country_threshold = 0.8):
         self.cts = utilities.country_list_maker()
+        self.just_cts = utilities.country_list_maker()
         self.inv_cts = utilities.make_inv_cts(self.cts)
         country_state_city = utilities.other_vectors()
         self.cts.update(country_state_city)
@@ -193,6 +194,9 @@ class Geoparse:
         country_picking: dict, with top two countries (ISO codes) and two measures of
                 confidence for the first choice.
         """
+        #if not hasattr(text, "vector"):
+        #    text = nlp(text)
+        # don't do because made up words, even after spacy, won't have a vector
         try:
             simils = np.dot(self.prebuilt_vec, text.vector)
         except Exception as e:
@@ -240,7 +244,7 @@ class Geoparse:
         return top
 
     def country_finder(self, text):
-        ct_list = self.cts.keys()
+        ct_list = self.just_cts.keys()
         if text in ct_list:
             return True
         else:
@@ -267,7 +271,7 @@ class Geoparse:
                                 "type" : "phrase"}}
             r = Q("match", feature_code='PCLI')
             res = self.conn.query(q).query(r)[0:5].execute()
-            self.country_exact = True
+            #self.country_exact = True
 
         else:
             # second, try for an exact phrase match
@@ -412,6 +416,10 @@ class Geoparse:
             if ent.text.strip() in self.skip_list:
                 continue
 
+            ## just for training purposes
+            #if ent.text.strip() in self.just_cts.keys():
+            #    continue
+
             #skip_list.add(ent.text.strip())
             ent_label = ent.label_ # destroyed by trimming
             ent = self.clean_entity(ent)
@@ -506,10 +514,9 @@ class Geoparse:
     #    features for updating the model.
 
 
-    def entry_for_prediction(self, loc):
+    def features_to_matrix(self, loc):
         """
         Create features for all possible labels, return as matrix for keras.
-        Maybe rename "features_to_matrix"
 
         Parameters
         ----------
@@ -597,16 +604,21 @@ class Geoparse:
         if not proced:
             print("Nothing came back from process_text")
         feat_list = []
+        # for each location...
         for loc in proced:
-            feat = self.entry_for_prediction(loc)
+            feat = self.features_to_matrix(loc)
             feat_list.append(feat)
-
+            # for each potential country...
             for n, i in enumerate(feat_list):
                 labels = i['labels']
-                prediction = self.model.predict(i['matrix']).transpose()[0]
-                ranks = prediction.argsort()[::-1]
-                labels = np.asarray(labels)[ranks]
-                prediction = prediction[ranks]
+                try:
+                    prediction = self.model.predict(i['matrix']).transpose()[0]
+                    ranks = prediction.argsort()[::-1]
+                    labels = np.asarray(labels)[ranks]
+                    prediction = prediction[ranks]
+                except ValueError:
+                    prediction = np.array([0])
+                    labels = np.array([""])
             loc['country_predicted'] = labels[0]
             loc['country_conf'] = prediction[0]
             loc['all_countries'] = labels

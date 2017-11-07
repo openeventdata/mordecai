@@ -2,7 +2,7 @@ import os
 import sys
 import glob
 import json
-from ..utilities import read_in_admin1, get_admin1
+from ..utilities import read_in_admin1
 from ..geoparse import Geoparse
 
 import spacy
@@ -25,6 +25,7 @@ def test_fm_methods_exist(geo):
 #    __location__ = os.path.realpath(os.path.join(os.getcwd(),
 #                                    os.path.dirname(__file__)))
 #    admin1_file = glob.glob(os.path.join(__location__, 'data/admin1CodesASCII.json'))
+#    print(admin1_file)
 #    t = read_in_admin1(admin1_file[0])
 #    assert t[u'ML.03'] == u'Kayes'
 #
@@ -43,8 +44,8 @@ def test_fm_methods_exist(geo):
 #    assert "NA" == get_admin1("fakeplace", "16", admin1_dict)
 
 def test_vector_picking(geo):
-    # switch to pytest fixtures
-    vp = geo.vector_picking("Mosul")
+    entity = nlp("Mosul")
+    vp = geo.vector_picking(entity)
     assert vp['country_1'] == "IRQ"
 
 def test_cts(geo):
@@ -69,10 +70,26 @@ def test_two_countries(geo):
     assert loc[0]['country_predicted'] == "SYR"
     assert loc[1]['country_predicted'] == "CHE"
 
-def test_no_loc(geo):
+def test_US_city(geo):
+    doc = "There's fighting in Norman, Oklahoma."
+    locs = geo.geoparse(doc)
+    assert locs[0]['geo']['geonameid'] == '4543762'
+    assert locs[1]['geo']['geonameid'] == '4544379'
+
+def test_admin1(geo):
+    doc = "There's fighting in Norman, Oklahoma."
+    locs = geo.geoparse(doc)
+    assert locs[0]['geo']['admin1'] == 'Oklahoma'
+
+def test_weird_loc(geo):
     doc = "There's fighting in Ajnsdgjb."
-    loc = geo.doc_to_guess(doc)
-    assert loc[0] == ""
+    loc = geo.geoparse(doc)
+    assert loc[0]['country_predicted'] == ""
+
+def test_no_loc(geo):
+    doc = "The dog ran through the park."
+    loc = geo.geoparse(doc)
+    assert len(loc) == 0
 
 def test_query(geo):
     results = geo.query_geonames("Berlin")
