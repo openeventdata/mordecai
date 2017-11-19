@@ -2,7 +2,6 @@ import os
 import sys
 import glob
 import json
-from ..utilities import read_in_admin1
 from ..geoparse import Geoparse
 
 import spacy
@@ -82,9 +81,9 @@ def test_admin1(geo):
     assert locs[0]['geo']['admin1'] == 'Oklahoma'
 
 def test_weird_loc(geo):
-    doc = "There's fighting in Ajnsdgjb."
+    doc = "There's fighting in Ajnsdgjb city."
     loc = geo.geoparse(doc)
-    assert loc[0]['country_predicted'] == ""
+    assert loc[0]['country_conf'] < 0.001
 
 def test_no_loc(geo):
     doc = "The dog ran through the park."
