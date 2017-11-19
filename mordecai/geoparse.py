@@ -6,11 +6,16 @@ from elasticsearch_dsl import Search, Q
 import numpy as np
 from collections import Counter
 from functools import lru_cache
+import editdistance
 
 from . import utilities
 
 import spacy
-nlp = spacy.load('en_core_web_lg')
+
+try:
+    nlp
+except NameError:
+    nlp = spacy.load('en_core_web_lg')
 
 class Geoparse:
     def __init__(self, es_ip="localhost", es_port="9200", verbose = False,
@@ -27,8 +32,8 @@ class Geoparse:
         self.conn = utilities.setup_es(es_ip, es_port)
         #self.country_exact = False # flag if it detects a country UPDATE: not currently holding per-query state like this
         #self.fuzzy = False # did it have to use fuzziness? UPDATE: not currently holding per-query state like this
-        self.model = keras.models.load_model("/Users/ahalterman/MIT/Geolocation/mordecai/mordecai/models/country_model.h5")
-        #self.model = keras.models.load_model("/Users/ahalterman/MIT/Geolocation/mordecai/mordecai/models/country_model_multi.h5")
+        self.country_model = keras.models.load_model("/Users/ahalterman/MIT/Geolocation/mordecai/mordecai/models/country_model.h5")
+        self.rank_model = keras.models.load_model("/Users/ahalterman/MIT/Geolocation/mordecai/mordecai/models/rank_model.h5")
         #countries = pd.read_csv("nat_df.csv")
         #nationality = dict(zip(countries.nationality, countries.alpha_3_code))
         #self.both_codes = {**nationality, **self.cts}
@@ -36,6 +41,8 @@ class Geoparse:
         self.training_setting = False # make this true if you want training formatted
         self.country_threshold = country_threshold # if the best guess is below this, don't return
                                                    # anything at all
+        feature_codes = pd.read_csv("/Users/ahalterman/MIT/Geolocation/mordecai/mordecai/data/feature_codes.txt", sep="\t", header = None)
+        self.code_to_text = dict(zip(feature_codes[1], feature_codes[3])) # human readable geonames IDs
         self.verbose = verbose # return the full dictionary or just the good parts?
 
     def country_mentions(self, doc):
@@ -349,6 +356,7 @@ class Geoparse:
         A_other = ["region"]
         AIRPORT_list = ["airport"]
         TERRAIN_list = ["mountain", "mountains", "stream", "river"]
+        FOREST_list = ["forest"]
 
         feature_positions = []
         feature_class = feature_code = ""
@@ -469,15 +477,15 @@ class Geoparse:
 
 
             try:
-                start = ent.start_char# - ent.sent.start_char
-                end = ent.end_char# - ent.sent.start_char
+                start = ent.start_char - ent.sent.start_char
+                end = ent.end_char - ent.sent.start_char
                 iso_label = maj_vote
                 try:
                     text_label = self.inv_cts[iso_label]
                 except KeyError:
                     text_label = ""
 
-                task = {"text" : ent.doc.text,#sent.text,
+                task = {"text" : ent.sent.text,
                         "label" : text_label, # human-readable country name
                         "word" : ent.text,
                         "spans" : [{
@@ -673,7 +681,9 @@ class Geoparse:
             doc = nlp(doc)
         proced = self.process_text(doc, require_maj=False)
         if not proced:
-            print("Nothing came back from process_text")
+            pass
+            # logging!
+            #print("Nothing came back from process_text")
         feat_list = []
         #proced = self.ent_list_to_matrix(proced)
 
@@ -686,7 +696,7 @@ class Geoparse:
             for n, i in enumerate(feat_list):
                 labels = i['labels']
                 try:
-                    prediction = self.model.predict(i['matrix']).transpose()[0]
+                    prediction = self.country_model.predict(i['matrix']).transpose()[0]
                     ranks = prediction.argsort()[::-1]
                     labels = np.asarray(labels)[ranks]
                     prediction = prediction[ranks]
@@ -724,11 +734,134 @@ class Geoparse:
             admin1_name = self.admin1_dict[lookup_key]
             return admin1_name
         except KeyError:
-            print("No admin code found for country {} and code {}".format(country_code2, admin1_code))
+            #print("No admin code found for country {} and code {}".format(country_code2, admin1_code))
             return "NA"
 
+    def features_for_rank(self, proc, results):
+        """Compute features for ranking results from ES/geonames
 
-    def format_geonames(self, res, searchterm = None):
+
+        Parameters
+        ----------
+        proc : dict
+            One dictionary from the list that comes back from geoparse or from process_text (doesn't matter)
+        results : dict
+            the response from a geonames query
+
+        Returns
+        --------
+        X : numpy matrix
+            holding the computed features
+
+        meta: list of dicts
+            including feature information
+        """
+        feature_list = []
+        meta = []
+        results = results['hits']['hits']
+        search_name = proc['word']
+        code_mention = proc['features']['code_mention']
+        class_mention = proc['features']['class_mention']
+
+        for rank, entry in enumerate(results):
+            # go through the results and calculate some features
+            # get population number and exists
+            try:
+                pop = int(entry['population'])
+                has_pop = 1
+            except Exception as e:
+                pop = 0
+                has_pop = 0
+            if pop > 0:
+                logp = np.log(pop)
+            else:
+                logp = 0
+            ### order the results came back
+            adj_rank = 1 / np.log(rank + 2)
+            # alternative names
+            len_alt = len(entry['alternativenames'])
+            adj_alt = np.log(len_alt)
+            ### feature class (just boost the good ones)
+            if entry['feature_class'] == "A" or entry['feature_class'] == "P":
+                good_type = 1
+            else:
+                good_type = 0
+                #fc_score = 3
+            ### feature class/code matching
+            if entry['feature_class'] == class_mention:
+                good_class_mention = 1
+            else:
+                good_class_mention = 0
+            if entry['feature_code'] == code_mention:
+                good_code_mention = 1
+            else:
+                good_code_mention = 0
+            ### edit distance
+            ed = editdistance.eval(search_name, entry['name'])
+            ed = ed # shrug
+            # maybe also get min edit distance to alternative names...
+
+            features = [has_pop, pop, logp, adj_rank, len_alt, adj_alt,
+                        good_type, good_class_mention, good_code_mention, ed]
+            m = self.format_geonames(entry)
+
+            feature_list.append(features)
+            meta.append(m)
+
+        #meta = geo.format_geonames(results)
+        X = np.asmatrix(feature_list)
+        return (X, meta)
+
+    def ranker(self, X, meta):
+        """
+        Sort the place features list by the score of its relevance.
+        """
+        # total score is just a sum of each row
+        total_score = X.sum(axis=1).transpose()
+        total_score = np.squeeze(np.asarray(total_score)) # matrix to array
+        ranks = total_score.argsort()
+        ranks = ranks[::-1]
+        # sort the list of dicts according to ranks
+        sorted_meta = [meta[r] for r in ranks]
+        sorted_X = X[ranks]
+        return (sorted_X, sorted_meta)
+
+    def format_for_prodigy(self, X, meta, placename, return_feature_subset = False):
+        """
+        Given a feature matrix, geonames data, and the original query,
+        construct a prodigy task.
+
+        Make meta nicely readable: "A town in Germany"
+
+        Returns
+        --------
+        task_list: list of dicts
+            Tasks ready to be written to JSONL
+        """
+
+        all_tasks = []
+
+        sorted_X, sorted_meta = self.ranker(X, meta)
+        sorted_meta = sorted_meta[:4]
+        sorted_X = sorted_X[:4]
+        for n, i in enumerate(sorted_meta):
+            fc = self.code_to_text[i['feature_code']]
+            text = ''.join(['"', i['place_name'], '"',
+                            ", a ", fc,
+                            " in ", i['country_code3'],
+                            ", id: ", i['geonameid']])
+            d = {"id" : n + 1, "text" : text}
+            all_tasks.append(d)
+        #all_tasks.append({"id" : 4, "text" : "None/Other/Incorrect"})
+
+        if return_feature_subset:
+            return (all_tasks, sorted_meta, sorted_X)
+        else:
+            return all_tasks
+
+
+
+    def format_geonames_old(self, res, searchterm = None):
         """Pull out just the fields we want from a geonames entry
 
         For now: pulls out one with the most alternative
@@ -778,6 +911,53 @@ class Geoparse:
             return new_res
 
 
+    def format_geonames(self, entry, searchterm = None):
+        """Pull out just the fields we want from a geonames entry
+
+        To do:
+        - switch to model picking
+
+        Parameters
+        -----------
+        res : dict
+            ES/geonames result
+
+        searchterm : str
+            not implemented). Needed for better results picking
+
+        Returns
+        --------
+        new_res : dict
+            containing selected fields from selected geonames entry
+        """
+        try:
+            # take the most alternative names
+            #top = self.most_alternative(res, full_results=True)
+            lat, lon = entry['coordinates'].split(",")
+            new_res = {"admin1" : self.get_admin1(entry['country_code2'], entry['admin1_code']),
+                  "lat" : lat,
+                  "lon" : lon,
+                  "country_code3" : entry["country_code3"],
+                  "geonameid" : entry["geonameid"],
+                  "place_name" : entry["name"],
+                  "feature_class" : entry["feature_class"],
+                   "feature_code" : entry["feature_code"]}
+            return new_res
+        except (IndexError, TypeError):
+            # two conditions for these errors:
+            # 1. there are no results for some reason (Index)
+            # 2. res is set to "" because the country model was below the thresh
+            new_res = {"admin1" : "",
+                  "lat" : "",
+                  "lon" : "",
+                  "country_code3" : "",
+                  "geonameid" : "",
+                  "place_name" : "",
+                  "feature_class" : "",
+                   "feature_code" : ""}
+            return new_res
+
+
 
     def clean_proced(self, proced):
         """Small helper function to delete the features from the final dictionary.
@@ -794,6 +974,10 @@ class Geoparse:
                 pass
             try:
                 del loc['all_confidence']
+            except KeyError:
+                pass
+            try:
+                del loc['place_confidence']
             except KeyError:
                 pass
             try:
@@ -830,7 +1014,9 @@ class Geoparse:
             doc = nlp(doc)
         proced = self.doc_to_guess(doc)
         if not proced:
-            print("Nothing came back from doc_to_guess...")
+            pass
+            # logging!
+            #print("Nothing came back from doc_to_guess...")
         for loc in proced:
             if loc['country_conf'] >= self.country_threshold: # shrug
                 res = self.query_geonames_country(loc['word'], loc['country_predicted'])
@@ -838,7 +1024,16 @@ class Geoparse:
                 res = ""
                 # if the confidence is too low, don't use the country info
 
-            loc['geo'] = self.format_geonames(res)
+            # Pick the best place
+            X, meta = self.features_for_rank(loc, res)
+            all_tasks, sorted_meta, sorted_X = self.format_for_prodigy(X, meta, loc['word'], return_feature_subset=True)
+            fl_pad = np.pad(sorted_X, ((0, 4 - sorted_X.shape[0]), (0, 0)), 'constant')
+            fl_unwrap = fl_pad.flatten()
+            prediction = self.rank_model.predict(np.asmatrix(fl_unwrap))
+            place_confidence = prediction.max()
+            loc['geo'] = sorted_meta[prediction.argmax()]
+            loc['place_confidence'] = place_confidence
+
 
         if not verbose:
             proced = self.clean_proced(proced)
