@@ -7,6 +7,7 @@ import numpy as np
 from collections import Counter
 from functools import lru_cache
 import editdistance
+import pkg_resources
 
 from . import utilities
 
@@ -20,6 +21,8 @@ except NameError:
 class Geoparse:
     def __init__(self, es_ip="localhost", es_port="9200", verbose = False,
                 country_threshold = 0.8):
+        DATA_PATH = pkg_resources.resource_filename('mordecai', 'data/')
+        MODELS_PATH = pkg_resources.resource_filename('mordecai', 'models/')
         self.cts = utilities.country_list_maker()
         self.just_cts = utilities.country_list_maker()
         self.inv_cts = utilities.make_inv_cts(self.cts)
@@ -27,13 +30,13 @@ class Geoparse:
         self.cts.update(country_state_city)
         self.ct_nlp = utilities.country_list_nlp(self.cts)
         self.prebuilt_vec = [w.vector for w in self.ct_nlp]
-        self.both_codes = utilities.make_country_nationality_list(self.cts)
-        self.admin1_dict = utilities.read_in_admin1("/Users/ahalterman/MIT/Geolocation/mordecai/mordecai/data/admin1CodesASCII.json")
+        self.both_codes = utilities.make_country_nationality_list(self.cts, DATA_PATH + "nat_df.csv")
+        self.admin1_dict = utilities.read_in_admin1(DATA_PATH + "admin1CodesASCII.json")
         self.conn = utilities.setup_es(es_ip, es_port)
         #self.country_exact = False # flag if it detects a country UPDATE: not currently holding per-query state like this
         #self.fuzzy = False # did it have to use fuzziness? UPDATE: not currently holding per-query state like this
-        self.country_model = keras.models.load_model("/Users/ahalterman/MIT/Geolocation/mordecai/mordecai/models/country_model.h5")
-        self.rank_model = keras.models.load_model("/Users/ahalterman/MIT/Geolocation/mordecai/mordecai/models/rank_model.h5")
+        self.country_model = keras.models.load_model(MODELS_PATH + "country_model.h5")
+        self.rank_model = keras.models.load_model(MODELS_PATH + "rank_model.h5")
         #countries = pd.read_csv("nat_df.csv")
         #nationality = dict(zip(countries.nationality, countries.alpha_3_code))
         #self.both_codes = {**nationality, **self.cts}
@@ -41,7 +44,7 @@ class Geoparse:
         self.training_setting = False # make this true if you want training formatted
         self.country_threshold = country_threshold # if the best guess is below this, don't return
                                                    # anything at all
-        feature_codes = pd.read_csv("/Users/ahalterman/MIT/Geolocation/mordecai/mordecai/data/feature_codes.txt", sep="\t", header = None)
+        feature_codes = pd.read_csv(DATA_PATH + "feature_codes.txt", sep="\t", header = None)
         self.code_to_text = dict(zip(feature_codes[1], feature_codes[3])) # human readable geonames IDs
         self.verbose = verbose # return the full dictionary or just the good parts?
 

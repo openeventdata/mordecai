@@ -160,8 +160,7 @@ def country_list_nlp(cts):
     return ct_nlp
 
 
-def make_country_nationality_list(cts):
-    ct_file = "nat_df.csv"
+def make_country_nationality_list(cts, ct_file):
     countries = pd.read_csv(ct_file)
     nationality = dict(zip(countries.nationality,countries.alpha_3_code))
     both_codes = {**nationality, **cts}
