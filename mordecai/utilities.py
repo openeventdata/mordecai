@@ -10,7 +10,11 @@ from elasticsearch_dsl import Search, Q
 from elasticsearch import Elasticsearch
 
 import spacy
-nlp = spacy.load('en_core_web_lg')
+
+try:
+    nlp
+except NameError:
+    nlp = spacy.load('en_core_web_lg')
 
 
 def country_list_maker():
@@ -136,7 +140,7 @@ def make_skip_list(cts):
                     "Persian Gulf", "Central Europe", "Western Hemisphere", "Western Europe",
                     "European Union (E.U.)", "EU", "European Union", "E.U.", "Asia-Pacific",
                  "Europe", "Caribbean", "US", "U.S.", "Persian Gulf", "West Africa", "North", "East",
-                     "South", "West"
+                     "South", "West", "Western Countries"
                 ]
 
     # Some words are recurring spacy problems...
