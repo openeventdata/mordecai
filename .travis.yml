@@ -9,13 +9,13 @@ services:
   - docker
 
 before_install:
-- docker pull elasticsearch:5.5.2
-- wget 	https://s3.amazonaws.com/ahalterman-geo/geonames_index.tar.gz --output-file=wget_log.txt
-- tar -xzf geonames_index.tar.gz
-- docker run -d -p 127.0.0.1:9200:9200 -v $(pwd)/geonames_index/:/usr/share/elasticsearch/data elasticsearch:5.5.2
+  - docker pull elasticsearch:5.5.2
+  - wget 	https://s3.amazonaws.com/ahalterman-geo/geonames_index.tar.gz --output-file=wget_log.txt
+  - tar -xzf geonames_index.tar.gz
+  - docker run -d -p 127.0.0.1:9200:9200 -v $(pwd)/geonames_index/:/usr/share/elasticsearch/data elasticsearch:5.5.2
 
 install:
-  - pip install -r requirements.txt --quiet
+  - travis_wait pip install -r requirements.txt --quiet
 
 script:
   - pytest 
