@@ -8,3 +8,6 @@
 *.ipynb
 .cache
 mordecai/.cache
+build/
+dist/
+mordecai.egg-info
