@@ -59,7 +59,8 @@ class Geoparse:
 
         Returns
         -------
-        countries: dict, the top two countries (ISO code) and their frequency of mentions.
+        countries: dict
+            the top two countries (ISO code) and their frequency of mentions.
         """
 
         c_list = []
@@ -128,11 +129,13 @@ class Geoparse:
 
         Paramaters
         ----------
-        results: dict, output of `query_geonames`
+        results: dict
+            output of `query_geonames`
 
         Returns
         -------
-        most_common: str, ISO code of most common country, or empty string if none
+        most_common: str
+            ISO code of most common country, or empty string if none
         """
         try:
             country_count = Counter([i['country_code3'] for i in results['hits']['hits']])
@@ -151,12 +154,14 @@ class Geoparse:
 
         Paramaters
         ----------
-        results: dict, output of `query_geonames`
+        results: dict
+            output of `query_geonames`
 
         Returns
         -------
-        most_alt: str, ISO code of country of place with most alternative names,
-                    or empty string if none
+        most_alt: str
+            ISO code of country of place with most alternative names,
+            or empty string if none
         """
         try:
             alt_names = [len(i['alternativenames']) for i in results['hits']['hits']]
@@ -176,12 +181,14 @@ class Geoparse:
 
         Paramaters
         ----------
-        results: dict, output of `query_geonames`
+        results: dict
+            output of `query_geonames`
 
         Returns
         -------
-        most_pop: str, ISO code of country of place with largest population,
-                    or empty string if none
+        most_pop: str
+            ISO code of country of place with largest population,
+            or empty string if none
         """
 
         try:
@@ -198,16 +205,15 @@ class Geoparse:
 
         Parameters
         ---------
-        text: string, text to extract locations from.
+        text: str
+            the text to extract locations from.
 
         Returns
         -------
-        country_picking: dict, with top two countries (ISO codes) and two measures of
-                confidence for the first choice.
+        country_picking: dict
+            The top two countries (ISO codes) and two measures
+            confidence for the first choice.
         """
-        #if not hasattr(text, "vector"):
-        #    text = nlp(text)
-        # don't do because made up words, even after spacy, won't have a vector
         try:
             simils = np.dot(self.prebuilt_vec, text.vector)
         except Exception as e:
@@ -235,11 +241,13 @@ class Geoparse:
 
         Parameters
         -----------
-        results: dict, elasticsearch results
+        results: dict
+            elasticsearch results
 
         Returns
         -------
-        top: tuple, first and second results' country name (ISO)
+        top: tuple
+            first and second results' country name (ISO)
         """
         try:
             first_back = self.result['hits']['hits'][0]['country_code3']
@@ -255,6 +263,7 @@ class Geoparse:
         return top
 
     def country_finder(self, text):
+        """Check if a piece of text is in the list of countries"""
         ct_list = self.just_cts.keys()
         if text in ct_list:
             return True
@@ -266,11 +275,14 @@ class Geoparse:
         """
         Wrap search parameters into an elasticsearch query to the geonames index
         and return results.
+
         Parameters
         ---------
         conn: an elasticsearch Search conn, like the one returned by `setup_es()`
-        placename: string
-                   the placename text extracted by NER system
+
+        placename: str
+            the placename text extracted by NER system
+
         Returns
         -------
         out: The raw results of the elasticsearch query
@@ -311,6 +323,7 @@ class Geoparse:
     @lru_cache(maxsize=200)
     def query_geonames_country(self, placename, country):
         """
+        Like query_geonames, but this time limited to a specified country.
         """
         # first, try for an exact phrase match
         q = {"multi_match": {"query": placename,
@@ -336,7 +349,8 @@ class Geoparse:
 
     def feature_type_mention(self, ent):
         """
-        Count forward 1 word from each entity, looking for defined terms.
+        Count forward 1 word from each entity, looking for defined terms that indicate
+        geographic feature types (e.g. "village" = "P").
 
         Parameters
         -----------
@@ -394,7 +408,9 @@ class Geoparse:
 
 
     def process_text(self, doc, require_maj = False):
-        """Create features for the country picking model
+        """
+        Create features for the country picking model. Function where all the individual
+        feature maker functions are called and aggregated.
 
         Parameters
         -----------
@@ -528,9 +544,12 @@ class Geoparse:
     def features_to_matrix(self, loc):
         """
         Create features for all possible labels, return as matrix for keras.
+
         Parameters
         ----------
-        loc: dict, one entry from the list of locations and features that come out of process_text
+        loc: dict
+            one entry from the list of locations and features that come out of process_text
+
         Returns
         --------
         keras_inputs: dict with two keys, "label" and "matrix"
@@ -574,7 +593,8 @@ class Geoparse:
 
 
     def ent_to_matrix(self, loc, possible_labels):
-        """For one entry in the features list, create a matrix form of the data.
+        """Make feature matrix for country picking model.
+        For one entry in the features list, create a matrix form of the data.
 
         Unfortuately, the features are hardcoded here.
         """
@@ -717,6 +737,7 @@ class Geoparse:
     def get_admin1(self, country_code2, admin1_code):
         """
         Convert a geonames admin1 code to the associated place name.
+
         Parameters
         ---------
         country_code2: string
@@ -727,6 +748,7 @@ class Geoparse:
         admin1_dict: dictionary
                      The dictionary containing the country code + admin1 code
                      as keys and the admin1 names as values.
+
         Returns
         ------
         admin1_name: string
@@ -836,10 +858,23 @@ class Geoparse:
 
         Make meta nicely readable: "A town in Germany"
 
+        Parameters
+        ----------
+
+        X: matrix
+            vector of features for ranking. Output of features_for_rank()
+        meta: list of dictionaries
+            other place information. Output of features_for_rank(). Used to provide
+            information like "city in Germany" to the coding task.
+        placename: str
+            The extracted place name from text
+
+
         Returns
         --------
         task_list: list of dicts
-            Tasks ready to be written to JSONL
+            Tasks ready to be written to JSONL and use in Prodigy. Each potential match includes
+            a text description to the annotator can pick the right one.
         """
 
         all_tasks = []
@@ -855,7 +890,6 @@ class Geoparse:
                             ", id: ", i['geonameid']])
             d = {"id" : n + 1, "text" : text}
             all_tasks.append(d)
-        #all_tasks.append({"id" : 4, "text" : "None/Other/Incorrect"})
 
         if return_feature_subset:
             return (all_tasks, sorted_meta, sorted_X)
@@ -869,9 +903,6 @@ class Geoparse:
 
         For now: pulls out one with the most alternative
 
-        To do:
-        - switch to model picking
-        - do the admin1 formatting
 
         Parameters
         -----------
@@ -879,7 +910,7 @@ class Geoparse:
             ES/geonames result
 
         searchterm : str
-            not implemented). Needed for better results picking
+            (not implemented). Needed for better results picking
 
         Returns
         --------
@@ -926,7 +957,7 @@ class Geoparse:
             ES/geonames result
 
         searchterm : str
-            not implemented). Needed for better results picking
+            (not implemented). Needed for better results picking
 
         Returns
         --------
@@ -934,8 +965,6 @@ class Geoparse:
             containing selected fields from selected geonames entry
         """
         try:
-            # take the most alternative names
-            #top = self.most_alternative(res, full_results=True)
             lat, lon = entry['coordinates'].split(",")
             new_res = {"admin1" : self.get_admin1(entry['country_code2'], entry['admin1_code']),
                   "lat" : lat,
@@ -998,11 +1027,11 @@ class Geoparse:
         return proced
 
     def geoparse(self, doc, verbose = False):
-        """Main geoparsing function. Text to extracted, resolved entities
+        """Main geoparsing function. Text to extracted, resolved entities.
 
         Parameters
         ----------
-        doc : str (or spaCy)
+        doc : str or spaCy
             The document to be geoparsed. Can be either raw text or already spacy processed.
             In some cases, it makes sense to bulk parse using spacy's .pipe() before sending
             through to Mordecai

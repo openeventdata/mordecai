@@ -7,9 +7,6 @@ structured geographic information.
 Example usage
 -------------
 
-`mordecai` requires a running Elasticsearch service with Geonames in it. See
-"Installation" below for instructions.
-
 ```
 >>> from mordecai import Geoparse
 >>> geo = Geoparse()
@@ -41,61 +38,55 @@ Example usage
   'word': 'Lima'}]
 ```
 
+`mordecai` requires a running Elasticsearch service with Geonames in it. See
+"Installation" below for instructions.
 
-Why Mordecai?
-------------
-
-Mordecai was developed to address several specific needs that previous text
-geoparsing software did not. These specific requirements include:
-
-- Overcoming a strong preference for US locations in existing geoparsing
-  software. Mordecai makes determining the country focus of the text should
-  be a separate and accurate step in the geoparsing process.
-- Ease of setup and use. The system should be installable and usable by people
-  with only basic programming skills. Mordecai does this by running as a Python 
-  library.
-- Drop-in replacement for [CLIFF](http://cliff.mediameter.org/)/
-[CLAVIN](https://clavin.bericotechnologies.com/) in the [Open Event Data
-Alliance](https://github.com/openeventdata) event data pipeline.
-- Ease of modification. This software was developed to be used primarily by
-  social science researchers, who tend to be much more familiar with Python
-  than Java. Mordecai makes the key steps in the geoparsing process (named entity
-  extraction, place name resolution, gazetteer lookup) exposed and easily
-  changed.
-- Language-agnostic architecture. The only language-specific components of
-  Mordecai are the named entity extraction model and the word2vec model. Both
-  of these can be easily swapped out, giving researchers the ability to
-  geoparse non-English text, which is a capability that has not existed in open
-  source software until now.
 
 Installation and Use
 --------------------
 
-(expand later)
+Mordecai is on PyPI and can be installed with pip:
 
-0. have Docker installed
-1. Download and decompress Geonames ES index 
-2. Start Docker container with volume
-3. `pip install mordecai`
+```
+pip install mordecai
+```
+
+In order to work, Mordecai needs access to a Geonames gazetteer running in
+Elasticsearch. The easiest way to set it up is by running the following
+commands (you must have [Docker](https://docs.docker.com/engine/installation/)
+installed first).
+
+```
+docker pull elasticsearch:5.5.2
+wget https://s3.amazonaws.com/ahalterman-geo/geonames_index.tar.gz --output-file=wget_log.txt
+tar -xzf geonames_index.tar.gz
+docker run -d -p 127.0.0.1:9200:9200 -v $(pwd)/geonames_index/:/usr/share/elasticsearch/data elasticsearch:5.5.2
+```
+
+You can then run Mordecai as above.
 
 How does it work?
 -----------------
 
 `Mordecai` accepts text and returns structured geographic information extracted
-from it. It does this in several ways:
+from it. 
 
 - It uses [spaCy](https://github.com/explosion/spaCy/)'s named entity recognition to
   extract placenames from the text.
 
-- It uses a country-filtered search of the [geonames](http://www.geonames.org/)
-  gazetteer in [Elasticsearch](https://www.elastic.co/products/elasticsearch)
-  (with some custom logic) to find the latitude and longitude for each place
-  mentioned in the text.
+- It uses a the [geonames](http://www.geonames.org/)
+  gazetteer in an [Elasticsearch](https://www.elastic.co/products/elasticsearch) index 
+  (with some custom logic) to find potential the potential coordinates of
+  extracted place names.
 
 - It uses neural networks implemented in [Keras](https://keras.io/) and trained on new annotated
-    placenames to infer the correct country and gazetteer entries for each
-    placename. 
+  data to infer the correct country and gazetteer entries for each
+  placename. 
 
+See `paper/Mordecai_whitepaper.pdf` for more details.
+
+The training data for the two models includes copyrighted text so cannot be
+shared freely, but get in touch with me if you're interested in it.
 
 Tests
 -----
@@ -144,6 +135,9 @@ Software*, 2(9), 91, doi:10.21105/joss.00091
   doi={10.21105/joss.00091}
 }
 ```
+
+Send a note if you use Mordecai! It's always interesting to hear what people
+are doing with it and whether it's doing what they want it to.
 
 Contributing
 ------------

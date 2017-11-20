@@ -18,6 +18,9 @@ except NameError:
 
 
 def country_list_maker():
+    """
+    Helper function to return dictionary of countries in {"country" : "iso"} form.
+    """
     cts = {"Afghanistan":"AFG", "Åland Islands":"ALA", "Albania":"ALB", "Algeria":"DZA",
     "American Samoa":"ASM", "Andorra":"AND", "Angola":"AGO", "Anguilla":"AIA",
     "Antarctica":"ATA", "Antigua Barbuda":"ATG", "Argentina":"ARG",
@@ -97,6 +100,11 @@ def country_list_maker():
 
 
 def other_vectors():
+    """
+    Define more {placename : iso} mappings to improve performance of vector-based
+    country picking. An easy hack to force a placename to resolve to a defined country
+    would be to add it to this list.
+    """
     # We want the advantage of having more defined vector terms to help
     # matching, but we also want to make sure that when we invert the
     # dictionary for labeling, each ISO code gets resolved to a single country
@@ -128,6 +136,10 @@ def other_vectors():
 
 
 def make_skip_list(cts):
+    """
+    Return hand-defined list of place names to skip and not attempt to geolocate. If users would like to exclude
+    country names, this would be the function to do it with.
+    """
     # maybe make these non-country searches but don't discard, at least for
     # some (esp. bodies of water)
     special_terms = ["Europe", "West", "the West", "South Pacific", "Gulf of Mexico", "Atlantic",
@@ -153,6 +165,7 @@ def make_skip_list(cts):
 
 
 def country_list_nlp(cts):
+    """NLP countries so we can use for vector comparisons"""
     ct_nlp = []
     for i in cts.keys():
         nlped = nlp(i)
@@ -161,6 +174,7 @@ def country_list_nlp(cts):
 
 
 def make_country_nationality_list(cts, ct_file):
+    """Combine list of countries and list of nationalities"""
     countries = pd.read_csv(ct_file)
     nationality = dict(zip(countries.nationality,countries.alpha_3_code))
     both_codes = {**nationality, **cts}
@@ -181,11 +195,13 @@ def make_inv_cts(cts):
 def read_in_admin1(filepath):
     """
     Small helper function to read in a admin1 code <--> admin1 name document.
+
     Parameters
     ----------
     filepath: string
               path to the admin1 mapping JSON. This file is usually
               mordecai/resources/data/admin1CodesASCII.json
+
     Returns
     -------
     admin1_dict: dictionary
@@ -199,8 +215,8 @@ def read_in_admin1(filepath):
 
 
 
-
 def structure_results(res):
+    """Format Elasticsearch result as Python dictionary"""
     out = {'hits': {'hits': []}}
     keys = [u'admin1_code', u'admin2_code', u'admin3_code', u'admin4_code',
             u'alternativenames', u'asciiname', u'cc2', u'coordinates',
@@ -217,6 +233,7 @@ def structure_results(res):
 def setup_es(es_ip, es_port):
     """
     Setup an Elasticsearch connection
+
     Parameters
     ----------
     es_ip: string
