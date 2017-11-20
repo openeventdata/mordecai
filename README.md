@@ -3,6 +3,11 @@
 mordecai
 =========
 
+**This is a legacy form of Mordecai, based on a Docker and Flask framework.
+Development on this branch stopped in summer 2017 but is being preserved here
+for current users of this approach. Please see the master branch for the
+current form of Mordecai.**
+
 Custom-built full text geoparsing. Extract all the place names from a piece of
 text, resolve them to the correct place, and return their coordinates and
 structured geographic information.
