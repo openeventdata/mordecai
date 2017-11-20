@@ -27,47 +27,80 @@ def entry_to_matrix(prodigy_entry):
     Two ways to get 0s:
         - marked as false by user
         - generated automatically from other entries when guess is correct
+
+    Rather than iterating through entities, just get the number of the correct entity directly.
+    Then get one or two GPEs before and after.
     """
     doc = prodigy_entry['text']
     doc = nlp(doc)
     geo_proced = geo.process_text(doc, require_maj=False)
-    for geo_proc in geo_proced:
-        if geo_proc['word'] == prodigy_entry['meta']['word']:
-            #doc = nlp(doc)
-            iso = geo.cts[prodigy_entry['label']] # convert country text label to ISO
-            feat = geo.entry_for_prediction(geo_proc)
-            x = feat['matrix']
-            label = np.asarray(feat['labels'])
 
-            if prodigy_entry['answer'] == "accept":
-                binary = label == iso
-                binary = binary.astype('int')
-                #print(x.shape)
-                #print(binary.shape)
+    # find the geoproced entity that matches the Prodigy entry
+    ent_text = np.asarray([gp['word'] for gp in geo_proced]) # get mask for correct ent
+    #print(ent_text)
+    match = ent_text == entry['meta']['word']
+    #print("match: ", match)
+    anti_match = np.abs(match - 1)
+    #print("Anti-match ", anti_match)
+    match_position = match.argmax()
+
+    geo_proc = geo_proced[match_position]
+
+    iso = geo.cts[prodigy_entry['label']] # convert country text label to ISO
+    feat = geo.features_to_matrix(geo_proc)
+    answer_x = feat['matrix']
+    label = np.asarray(feat['labels'])
+
+    if prodigy_entry['answer'] == "accept":
+        answer_binary = label == iso
+        answer_binary = answer_binary.astype('int')
+        #print(answer_x.shape)
+        #print(answer_binary.shape)
 
 
-            elif prodigy_entry['answer'] == "reject":
-                # all we know is that the label that was presented is wrong.
-                # just return the corresponding row in the feature matrix,
-                #   and force the label to be 0
-                binary = label == iso
-                x = x[binary,:]
-                binary = np.asarray([0])
-        else:
-            # here's where we get the other place name features.
-            # Need to:
-            #  1. do entry_for_prediction but use the label of the current entity
-            #     to determine 0/1 in the feature matrix
-            #  2. put them all into one big feature matrix,
-            #  3. ...ordering by distance? And need to decide max entity length
-            #  4. also include these distances as one of the features
-            pass
+    elif prodigy_entry['answer'] == "reject":
+        # all we know is that the label that was presented is wrong.
+        # just return the corresponding row in the feature matrix,
+        #   and force the label to be 0
+        answer_binary = label == iso
+        answer_x = answer_x[answer_binary,:] # just take the row corresponding to the answer
+        answer_binary = np.asarray([0]) # set the outcome to 0 because reject
 
-            try:
-                if x.shape[0] == binary.shape[0]:
-                    return (x, binary)
-            except:
-                pass
+    # NEED TO SHARE LABELS ACROSS! THE CORRECT ONE MIGHT NOT EVEN APPEAR FOR ALL ENTITIES
+
+    x = feat['matrix']
+    other_x = x[anti_match,:]
+    #print(other_x)
+    #print(label[anti_match])
+    # here, need to get the rows corresponding to the correct label
+
+    #    print(geo_proc['meta'])
+        # here's where we get the other place name features.
+        # Need to:
+        #  1. do features_to_matrix but use the label of the current entity
+        #     to determine 0/1 in the feature matrix
+        #  2. put them all into one big feature matrix,
+        #  3. ...ordering by distance? And need to decide max entity length
+        #  4. also include these distances as one of the features
+
+    #print(answer_x.shape[0])
+    #print(answer_binary.shape[0])
+    try:
+        if answer_x.shape[0] == answer_binary.shape[0]:
+            return (answer_x, answer_binary)
+    except:
+        pass
+
+    #return (answer_x, answer_binary)
+
+            # If it's accept, convert the label of the correct one to 1, the others to 0, return all
+            # If it's reject, convert the label of the presented one to 0, and DELETE the rows in the
+            #   matrix/vector. If the presented one is false, we don't know if the other, non-presented
+            #   ones were correct or not.
+
+            # return the text labels, too, so we can look at per-country accuracy later.
+
+    #    feat_list.append(feat)
 
 error_count = 0
 with jsonlines.open('geo_annotated/geo_country_db.jsonl') as reader:
