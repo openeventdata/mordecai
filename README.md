@@ -10,11 +10,11 @@ Example usage
 ```
 >>> from mordecai import Geoparser
 >>> geo = Geoparser()
->>> geo.geoparse("I traveled from Oxford to Lima.")
+>>> geo.geoparse("I traveled from Oxford to Ottawa.")
 
 [{'country_conf': 0.96474487,
   'country_predicted': 'GBR',
-  'geo': {'admin1': 'to do',
+  'geo': {'admin1': 'England',
    'country_code3': 'GBR',
    'feature_class': 'P',
    'feature_code': 'PPLA2',
@@ -24,25 +24,25 @@ Example usage
    'place_name': 'Oxford'},
   'spans': [{'end': 22, 'start': 16}],
   'word': 'Oxford'},
- {'country_conf': 0.99259007,
-  'country_predicted': 'PER',
-  'geo': {'admin1': 'to do',
-   'country_code3': 'PER',
+ {'country_conf': 0.83302397,
+  'country_predicted': 'CAN',
+  'geo': {'admin1': 'Ontario',
+   'country_code3': 'CAN',
    'feature_class': 'P',
    'feature_code': 'PPLC',
-   'geonameid': '3936456',
-   'lat': '-12.04318',
-   'lon': '-77.02824',
-   'place_name': 'Lima'},
-  'spans': [{'end': 30, 'start': 26}],
-  'word': 'Lima'}]
+   'geonameid': '6094817',
+   'lat': '45.41117',
+   'lon': '-75.69812',
+   'place_name': 'Ottawa'},
+  'spans': [{'end': 32, 'start': 26}],
+  'word': 'Ottawa'}]
 ```
 
 `mordecai` requires a running Elasticsearch service with Geonames in it. See
 "Installation" below for instructions.
 
 
-Installation and Use
+Installation and Requirements
 --------------------
 
 Mordecai is on PyPI and can be installed with pip:
@@ -74,16 +74,14 @@ from it.
 - It uses [spaCy](https://github.com/explosion/spaCy/)'s named entity recognition to
   extract placenames from the text.
 
-- It uses a the [geonames](http://www.geonames.org/)
+- It uses the [geonames](http://www.geonames.org/)
   gazetteer in an [Elasticsearch](https://www.elastic.co/products/elasticsearch) index 
-  (with some custom logic) to find potential the potential coordinates of
+  (with some custom logic) to find the potential coordinates of
   extracted place names.
 
 - It uses neural networks implemented in [Keras](https://keras.io/) and trained on new annotated
-  data to infer the correct country and gazetteer entries for each
+  data to infer the correct country and correct gazetteer entries for each
   placename. 
-
-See `paper/Mordecai_whitepaper.pdf` for more details.
 
 The training data for the two models includes copyrighted text so cannot be
 shared freely, but get in touch with me if you're interested in it.
@@ -105,21 +103,23 @@ some cases:
 Tests
 -----
 
-`mordecai` includes a few unit tests. To run the tests:
+`mordecai` includes a few unit tests. To run the tests, `cd` into the
+`mordecai` directory and run:
 
 ```
-py.test
+pytest
 ```
 
 The tests require access to a running Elastic/Geonames service to
-complete. 
+complete. The tests are currently failing on TravisCI with an unexplained
+segfault but run fine locally. Mordecai has only been tested with Python 3.
 
 
 Acknowledgements
 ----------------
 
 An earlier verion of this software was donated to the Open Event Data Alliance
-by Caerus Associates.  See [Releases](https://github.com/openeventdata/mordecai/releases) for the
+by Caerus Associates.  See [Releases](https://github.com/openeventdata/mordecai/releases) or the [legacy-docker](https://github.com/openeventdata/mordecai/tree/legacy-docker) branch for the
 2015-2016 and the 2016-2017 production versions of Mordecai.
 
 This work was funded in part by DARPA's XDATA program, the U.S. Army Research
@@ -132,6 +132,9 @@ government.
 
 Citing
 ------
+
+Send a note if you use Mordecai! It's always interesting to hear what people
+are doing with it and whether it's doing what they want it to.
 
 If you use this software in academic work, please cite as 
 
@@ -149,9 +152,6 @@ Software*, 2(9), 91, doi:10.21105/joss.00091
   doi={10.21105/joss.00091}
 }
 ```
-
-Send a note if you use Mordecai! It's always interesting to hear what people
-are doing with it and whether it's doing what they want it to.
 
 Contributing
 ------------
