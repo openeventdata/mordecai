@@ -8,8 +8,8 @@ Example usage
 -------------
 
 ```
->>> from mordecai import Geoparse
->>> geo = Geoparse()
+>>> from mordecai import Geoparser
+>>> geo = Geoparser()
 >>> geo.geoparse("I traveled from Oxford to Lima.")
 
 [{'country_conf': 0.96474487,
@@ -87,6 +87,20 @@ See `paper/Mordecai_whitepaper.pdf` for more details.
 
 The training data for the two models includes copyrighted text so cannot be
 shared freely, but get in touch with me if you're interested in it.
+
+API
+--------
+
+`geoparse` is the primary endpoint and the only one that most users will need.
+Other methods are primarily internal to Mordecai but may be directly useful in
+some cases:
+
+- `infer_country` take a document and attempts to infer the most probable
+    country for each.
+- `query_geonames` and `query_geonames_country` can be used for performing a
+    search over Geonames in Elasticsearch
+- methods with the `_feature` prefix are internal methods for
+    calculating country picking features from text.
 
 Tests
 -----

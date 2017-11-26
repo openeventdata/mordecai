@@ -53,7 +53,7 @@ def country_list_maker():
     "India":"IND", "Indonesia":"IDN", "Iran":"IRN", "Iraq":"IRQ", "Ireland":"IRL",
     "Israel":"ISR", "Italy":"ITA", "Jamaica":"JAM", "Japan":"JPN",
     "Jordan":"JOR", "Kazakhstan":"KAZ", "Kenya":"KEN",
-    "Kiribati":"KIR", "Kosovo": "KSV", "Kuwait":"KWT", "Kyrgyzstan":"KGZ", "Laos":"LAO",
+    "Kiribati":"KIR", "Kosovo": "XKX", "Kuwait":"KWT", "Kyrgyzstan":"KGZ", "Laos":"LAO",
     "Latvia":"LVA", "Lebanon":"LBN", "Lesotho":"LSO", "Liberia":"LBR",
     "Libya":"LBY", "Liechtenstein":"LIE", "Lithuania":"LTU", "Luxembourg":"LUX",
     "Macau":"MAC", "Macedonia":"MKD", "Madagascar":"MDG", "Malawi":"MWI",

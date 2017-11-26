@@ -1,4 +1,3 @@
-import importlib
 import keras
 import pandas as pd
 from elasticsearch_dsl.query import MultiMatch
@@ -18,20 +17,20 @@ try:
 except NameError:
     nlp = spacy.load('en_core_web_lg')
 
-class Geoparse:
+class Geoparser:
     def __init__(self, es_ip="localhost", es_port="9200", verbose = False,
                 country_threshold = 0.8):
         DATA_PATH = pkg_resources.resource_filename('mordecai', 'data/')
         MODELS_PATH = pkg_resources.resource_filename('mordecai', 'models/')
-        self.cts = utilities.country_list_maker()
-        self.just_cts = utilities.country_list_maker()
-        self.inv_cts = utilities.make_inv_cts(self.cts)
+        self._cts = utilities.country_list_maker()
+        self._just_cts = utilities.country_list_maker()
+        self._inv_cts = utilities.make_inv_cts(self._cts)
         country_state_city = utilities.other_vectors()
-        self.cts.update(country_state_city)
-        self.ct_nlp = utilities.country_list_nlp(self.cts)
-        self.prebuilt_vec = [w.vector for w in self.ct_nlp]
-        self.both_codes = utilities.make_country_nationality_list(self.cts, DATA_PATH + "nat_df.csv")
-        self.admin1_dict = utilities.read_in_admin1(DATA_PATH + "admin1CodesASCII.json")
+        self._cts.update(country_state_city)
+        self._ct_nlp = utilities.country_list_nlp(self._cts)
+        self._prebuilt_vec = [w.vector for w in self._ct_nlp]
+        self._both_codes = utilities.make_country_nationality_list(self._cts, DATA_PATH + "nat_df.csv")
+        self._admin1_dict = utilities.read_in_admin1(DATA_PATH + "admin1CodesASCII.json")
         self.conn = utilities.setup_es(es_ip, es_port)
         #self.country_exact = False # flag if it detects a country UPDATE: not currently holding per-query state like this
         #self.fuzzy = False # did it have to use fuzziness? UPDATE: not currently holding per-query state like this
@@ -39,16 +38,16 @@ class Geoparse:
         self.rank_model = keras.models.load_model(MODELS_PATH + "rank_model.h5")
         #countries = pd.read_csv("nat_df.csv")
         #nationality = dict(zip(countries.nationality, countries.alpha_3_code))
-        #self.both_codes = {**nationality, **self.cts}
-        self.skip_list = utilities.make_skip_list(self.cts)
+        #self._both_codes = {**nationality, **self._cts}
+        self._skip_list = utilities.make_skip_list(self._cts)
         self.training_setting = False # make this true if you want training formatted
         self.country_threshold = country_threshold # if the best guess is below this, don't return
                                                    # anything at all
         feature_codes = pd.read_csv(DATA_PATH + "feature_codes.txt", sep="\t", header = None)
-        self.code_to_text = dict(zip(feature_codes[1], feature_codes[3])) # human readable geonames IDs
+        self._code_to_text = dict(zip(feature_codes[1], feature_codes[3])) # human readable geonames IDs
         self.verbose = verbose # return the full dictionary or just the good parts?
 
-    def country_mentions(self, doc):
+    def _feature_country_mentions(self, doc):
         """
         Given a document, count how many times different country names and adjectives are mentioned.
         These are features used in the country picking phase.
@@ -66,7 +65,7 @@ class Geoparse:
         c_list = []
         for i in doc.ents:
             try:
-                country = self.both_codes[i.text]
+                country = self._both_codes[i.text]
                 c_list.append(country)
             except KeyError:
                 pass
@@ -123,7 +122,7 @@ class Geoparse:
             new_ent = ent
         return new_ent
 
-    def most_common_geo(self, results):
+    def _feature_most_common(self, results):
         """
         Find the most common country name in ES/Geonames results
 
@@ -147,7 +146,7 @@ class Geoparse:
             return ""
 
 
-    def most_alternative(self, results, full_results = False):
+    def _feature_most_alternative(self, results, full_results = False):
         """
         Find the placename with the most alternative names and return its country.
         More alternative names are a rough measure of importance.
@@ -174,7 +173,7 @@ class Geoparse:
             return ""
 
 
-    def most_population(self, results):
+    def _feature_most_population(self, results):
         """
         Find the placename with the largest population and return its country.
         More population is a rough measure of importance.
@@ -199,7 +198,7 @@ class Geoparse:
             return ""
 
 
-    def vector_picking(self, text):
+    def _feature_word_embedding(self, text):
         """
         Given a word, guess the appropriate country by word vector.
 
@@ -215,7 +214,7 @@ class Geoparse:
             confidence for the first choice.
         """
         try:
-            simils = np.dot(self.prebuilt_vec, text.vector)
+            simils = np.dot(self._prebuilt_vec, text.vector)
         except Exception as e:
             #print("Vector problem, ", Exception, e)
             return {"country_1" : "",
@@ -228,14 +227,14 @@ class Geoparse:
         confid2 = simils[ranks[0]] - simils[ranks[1]]
         if confid == 0 or confid2 == 0:
             return ""
-        country_code = self.cts[str(self.ct_nlp[ranks[0]])]
+        country_code = self._cts[str(self._ct_nlp[ranks[0]])]
         country_picking = {"country_1" : country_code,
                 "confid_a" : confid,
                 "confid_b" : confid2,
-                "country_2" : self.cts[str(self.ct_nlp[ranks[1]])]}
+                "country_2" : self._cts[str(self._ct_nlp[ranks[1]])]}
         return country_picking
 
-    def get_first_back(self, results):
+    def _feature_first_back(self, results):
         """
         Get the country of the first two results back from geonames.
 
@@ -250,21 +249,21 @@ class Geoparse:
             first and second results' country name (ISO)
         """
         try:
-            first_back = self.result['hits']['hits'][0]['country_code3']
+            first_back = results['hits']['hits'][0]['country_code3']
         except (TypeError, IndexError):
             # usually occurs if no Geonames result
             first_back = ""
         try:
-            second_back = self.result['hits']['hits'][1]['country_code3']
+            second_back = results['hits']['hits'][1]['country_code3']
         except (TypeError, IndexError):
             second_back = ""
 
         top = (first_back, second_back)
         return top
 
-    def country_finder(self, text):
+    def is_country(self, text):
         """Check if a piece of text is in the list of countries"""
-        ct_list = self.just_cts.keys()
+        ct_list = self._just_cts.keys()
         if text in ct_list:
             return True
         else:
@@ -288,7 +287,7 @@ class Geoparse:
         out: The raw results of the elasticsearch query
         """
         # first first, try for country name
-        if self.country_finder(placename):
+        if self.is_country(placename):
             q = {"multi_match": {"query": placename,
                                  "fields": ['name', 'asciiname', 'alternativenames'],
                                 "type" : "phrase"}}
@@ -347,7 +346,7 @@ class Geoparse:
         out = utilities.structure_results(res)
         return out
 
-    def feature_type_mention(self, ent):
+    def _feature_location_type_mention(self, ent):
         """
         Count forward 1 word from each entity, looking for defined terms that indicate
         geographic feature types (e.g. "village" = "P").
@@ -381,7 +380,7 @@ class Geoparse:
         interest_words = ent.doc[ent.end-1 : ent.end + 1] # last word or next word following
 
         for word in interest_words: #ent.sent:
-            if ent.text in self.just_cts.keys():
+            if ent.text in self._just_cts.keys():
                 feature_class = "A"
                 feature_code = "PCLI"
             elif word.text.lower() in P_list:
@@ -407,10 +406,10 @@ class Geoparse:
 
 
 
-    def process_text(self, doc, require_maj = False):
+    def make_country_features(self, doc, require_maj = False):
         """
         Create features for the country picking model. Function where all the individual
-        feature maker functions are called and aggregated.
+        feature maker functions are called and aggregated. (Formerly "process_text")
 
         Parameters
         -----------
@@ -429,10 +428,10 @@ class Geoparse:
         task_list = []
 
         # get document vector
-        #doc_vec = self.vector_picking(text)['country_1']
+        #doc_vec = self._feature_word_embedding(text)['country_1']
 
         # get explicit counts of country names
-        ct_mention, ctm_count1, ct_mention2, ctm_count2 = self.country_mentions(doc)
+        ct_mention, ctm_count1, ct_mention2, ctm_count2 = self._feature_country_mentions(doc)
 
         # now iterate through the entities, skipping irrelevant ones and countries
         for ent in doc.ents:
@@ -441,11 +440,11 @@ class Geoparse:
             if ent.label_ not in ["GPE","LOC","FAC"]:
                 continue
             # don't include country names (make a parameter)
-            if ent.text.strip() in self.skip_list:
+            if ent.text.strip() in self._skip_list:
                 continue
 
             ## just for training purposes
-            #if ent.text.strip() in self.just_cts.keys():
+            #if ent.text.strip() in self._just_cts.keys():
             #    continue
 
             #skip_list.add(ent.text.strip())
@@ -453,7 +452,7 @@ class Geoparse:
             ent = self.clean_entity(ent)
 
             # vector for just the solo word
-            vp = self.vector_picking(ent)
+            vp = self._feature_word_embedding(ent)
             try:
                 word_vec = vp['country_1']
                 wv_confid = float(vp['confid_a'])
@@ -463,19 +462,19 @@ class Geoparse:
                 wv_confid = "0"
 
             # look for explicit mentions of feature names
-            class_mention, code_mention = self.feature_type_mention(ent)
+            class_mention, code_mention = self._feature_location_type_mention(ent)
 
             ##### ES-based features
             try:
-                self.result = self.query_geonames(ent.text)
+                result = self.query_geonames(ent.text)
             except ConnectionTimeout:
-                self.result = ""
+                result = ""
 
             # build results-based features
-            most_alt = self.most_alternative(self.result)
-            most_common = self.most_common_geo(self.result)
-            most_pop = self.most_population(self.result)
-            first_back, second_back = self.get_first_back(self.result)
+            most_alt = self._feature_most_alternative(result)
+            most_common = self._feature_most_common(result)
+            most_pop = self._feature_most_population(result)
+            first_back, second_back = self._feature_first_back(result)
 
             try:
                 maj_vote = Counter([word_vec, most_alt,
@@ -500,7 +499,7 @@ class Geoparse:
                 end = ent.end_char - ent.sent.start_char
                 iso_label = maj_vote
                 try:
-                    text_label = self.inv_cts[iso_label]
+                    text_label = self._inv_cts[iso_label]
                 except KeyError:
                     text_label = ""
 
@@ -535,20 +534,20 @@ class Geoparse:
                 print(e)
         return task_list # rename this var
 
-    # Two modules that call `process_text`:
+    # Two modules that call `make_country_features`:
     #  1. write out with majority vote for training
     #  2. turn into features, run model, return countries
     #  A third, standalone function will convert the labeled JSON from Prodigy into
     #    features for updating the model.
 
-    def features_to_matrix(self, loc):
+    def make_country_matrix(self, loc):
         """
-        Create features for all possible labels, return as matrix for keras.
+        Create features for all possible country labels, return as matrix for keras.
 
         Parameters
         ----------
         loc: dict
-            one entry from the list of locations and features that come out of process_text
+            one entry from the list of locations and features that come out of make_country_features
 
         Returns
         --------
@@ -592,81 +591,9 @@ class Geoparse:
         return keras_inputs
 
 
-    def ent_to_matrix(self, loc, possible_labels):
-        """Make feature matrix for country picking model.
-        For one entry in the features list, create a matrix form of the data.
 
-        Unfortuately, the features are hardcoded here.
-        """
-        top = loc['features']['ct_mention']
-        top_count = loc['features']['ctm_count1']
-        two =  loc['features']['ct_mention2']
-        two_count = loc['features']['ctm_count2']
-        word_vec = loc['features']['word_vec']
-        first_back = loc['features']['first_back']
-        most_alt = loc['features']['most_alt']
-        most_pop = loc['features']['most_pop']
-
-        X_mat = []
-
-        for label in possible_labels:
-            inputs  = np.array([word_vec, first_back, most_alt, most_pop])
-            x = inputs == label
-            x = np.asarray((x * 2) - 1) # convert to -1, 1
-
-            # get missing values
-            exists = inputs != ""
-            exists = np.asarray((exists * 2) - 1) # convert to -1, 1
-
-            counts = np.asarray([top_count, two_count]) # cludgy, should be up with "inputs"
-            mention = np.asarray([top, two]) == label
-            mention = mention*2 - 1
-            mention[counts == 0] = 0
-
-            # get correct values
-            features = np.concatenate([x, exists, counts, mention])
-            X_mat.append(np.asarray(features))
-
-        X_mat = np.asmatrix(X_mat)
-        return X_mat
-
-
-    def ent_list_to_matrix(self, ent_list):
-        """Update all entries in a feature list with the matrix form, including for left and right neighbors.
-
-        Not used currently (see #27), but updating the ent list is a nice way to keep things organized.
-        """
-        iso_codes = self.inv_cts.keys()
-        possible_labels = []
-        for ent in ent_list:
-            for f in ent['features'].values():
-                if f in iso_codes:
-                    possible_labels.append(f)
-        possible_labels = np.unique(possible_labels)
-
-        null_matrix = np.zeros((len(possible_labels), 12)) # hardcoded feature length!!
-
-        for n, ent in enumerate(ent_list):
-            #print(ent['word'])
-            main_X = self.ent_to_matrix(ent, possible_labels)
-            if n - 1 < 0:
-                left_X = null_matrix
-            else:
-                left_X = self.ent_to_matrix(ent_list[n-1], possible_labels)
-            try:
-                right_X = self.ent_to_matrix(ent_list[n+1], possible_labels)
-            except IndexError:
-                right_X = null_matrix
-
-            all_X = np.hstack((main_X, left_X, right_X))
-
-            ent['matrix'] = all_X
-            ent['labels'] = possible_labels
-
-        return ent_list
-
-    def doc_to_guess(self, doc):
-        """NLP a doc, find its entities, get their features, and return the model's country guess.
+    def infer_country(self, doc):
+        """NLP a doc, find its entities, get their features, and return the model's country guess for each.
         Maybe use a better name.
 
         Parameters
@@ -677,7 +604,7 @@ class Geoparse:
         Returns
         -------
         proced: list of dict
-            the feature output of "process_text" updated with the model's
+            the feature output of "make_country_features" updated with the model's
             estimated country for each entity.
             E.g.:
                 {'all_confidence': array([ 0.95783567,  0.03769876,  0.00454875], dtype=float32),
@@ -702,16 +629,16 @@ class Geoparse:
         """
         if not hasattr(doc, "ents"):
             doc = nlp(doc)
-        proced = self.process_text(doc, require_maj=False)
+        proced = self.make_country_features(doc, require_maj=False)
         if not proced:
             pass
             # logging!
-            #print("Nothing came back from process_text")
+            #print("Nothing came back from make_country_features")
         feat_list = []
         #proced = self.ent_list_to_matrix(proced)
 
         for loc in proced:
-            feat = self.features_to_matrix(loc)
+            feat = self.make_country_matrix(loc)
             #labels = loc['labels']
             feat_list.append(feat)
             #try:
@@ -756,7 +683,7 @@ class Geoparse:
         """
         lookup_key = ".".join([country_code2, admin1_code])
         try:
-            admin1_name = self.admin1_dict[lookup_key]
+            admin1_name = self._admin1_dict[lookup_key]
             return admin1_name
         except KeyError:
             #print("No admin code found for country {} and code {}".format(country_code2, admin1_code))
@@ -769,7 +696,7 @@ class Geoparse:
         Parameters
         ----------
         proc : dict
-            One dictionary from the list that comes back from geoparse or from process_text (doesn't matter)
+            One dictionary from the list that comes back from geoparse or from make_country_features (doesn't matter)
         results : dict
             the response from a geonames query
 
@@ -883,7 +810,7 @@ class Geoparse:
         sorted_meta = sorted_meta[:4]
         sorted_X = sorted_X[:4]
         for n, i in enumerate(sorted_meta):
-            fc = self.code_to_text[i['feature_code']]
+            fc = self._code_to_text[i['feature_code']]
             text = ''.join(['"', i['place_name'], '"',
                             ", a ", fc,
                             " in ", i['country_code3'],
@@ -896,53 +823,6 @@ class Geoparse:
         else:
             return all_tasks
 
-
-
-    def format_geonames_old(self, res, searchterm = None):
-        """Pull out just the fields we want from a geonames entry
-
-        For now: pulls out one with the most alternative
-
-
-        Parameters
-        -----------
-        res : dict
-            ES/geonames result
-
-        searchterm : str
-            (not implemented). Needed for better results picking
-
-        Returns
-        --------
-        new_res : dict
-            containing selected fields from selected geonames entry
-        """
-        try:
-            # take the most alternative names
-            top = self.most_alternative(res, full_results=True)
-            lat, lon = top['coordinates'].split(",")
-            new_res = {"admin1" : self.get_admin1(top['country_code2'], top['admin1_code']),
-                  "lat" : lat,
-                  "lon" : lon,
-                  "country_code3" : top["country_code3"],
-                  "geonameid" : top["geonameid"],
-                  "place_name" : top["name"],
-                  "feature_class" : top["feature_class"],
-                   "feature_code" : top["feature_code"]}
-            return new_res
-        except (IndexError, TypeError):
-            # two conditions for these errors:
-            # 1. there are no results for some reason (Index)
-            # 2. res is set to "" because the country model was below the thresh
-            new_res = {"admin1" : "",
-                  "lat" : "",
-                  "lon" : "",
-                  "country_code3" : "",
-                  "geonameid" : "",
-                  "place_name" : "",
-                  "feature_class" : "",
-                   "feature_code" : ""}
-            return new_res
 
 
     def format_geonames(self, entry, searchterm = None):
@@ -1044,11 +924,11 @@ class Geoparse:
         """
         if not hasattr(doc, "ents"):
             doc = nlp(doc)
-        proced = self.doc_to_guess(doc)
+        proced = self.infer_country(doc)
         if not proced:
             pass
             # logging!
-            #print("Nothing came back from doc_to_guess...")
+            #print("Nothing came back from infer_country...")
         for loc in proced:
             if loc['country_conf'] >= self.country_threshold: # shrug
                 res = self.query_geonames_country(loc['word'], loc['country_predicted'])
@@ -1056,6 +936,13 @@ class Geoparse:
                 res = ""
                 # if the confidence is too low, don't use the country info
 
+            try:
+                _ = res['hits']['hits']
+                # If there's no geonames result, what to do?
+                # For now, just continue.
+                # In the future, delete? Or add an empty "loc" field?
+            except TypeError:
+                continue
             # Pick the best place
             X, meta = self.features_for_rank(loc, res)
             all_tasks, sorted_meta, sorted_X = self.format_for_prodigy(X, meta, loc['word'], return_feature_subset=True)

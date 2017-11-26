@@ -1,6 +1,6 @@
-from ..geoparse import Geoparse
+from ..geoparse import Geoparser
 import pytest
 
 @pytest.fixture(scope='session', autouse=True)
 def geo():
-    return Geoparse()
+    return Geoparser()

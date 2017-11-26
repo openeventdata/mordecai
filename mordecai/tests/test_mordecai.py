@@ -2,64 +2,72 @@ import os
 import sys
 import glob
 import json
-from ..geoparse import Geoparse
+#from ..geoparse import Geoparser
 
 import spacy
 nlp = spacy.load('en_core_web_lg')
 
-def test_fm_values_exist(geo):
-    assert hasattr(geo, "cts")
-    assert hasattr(geo, "both_codes")
-    assert hasattr(geo, "ct_nlp")
-    assert hasattr(geo, "inv_cts")
-
 def test_fm_methods_exist(geo):
-    assert hasattr(geo, "most_alternative")
-    assert hasattr(geo, "most_common_geo")
-    assert hasattr(geo, "most_alternative")
-    assert hasattr(geo, "vector_picking")
+    assert hasattr(geo, "_feature_most_alternative")
+    assert hasattr(geo, "_feature_first_back")
+    assert hasattr(geo, "_feature_word_embedding")
     assert hasattr(geo, "clean_entity")
 
-#def test_read_in_admin1():
-#    __location__ = os.path.realpath(os.path.join(os.getcwd(),
-#                                    os.path.dirname(__file__)))
-#    admin1_file = glob.glob(os.path.join(__location__, 'data/admin1CodesASCII.json'))
-#    print(admin1_file)
-#    t = read_in_admin1(admin1_file[0])
-#    assert t[u'ML.03'] == u'Kayes'
-#
-#def test_get_admin1():
-#    __location__ = os.path.realpath(os.path.join(os.getcwd(),
-#                       os.path.dirname(__file__)))
-#    admin1_file = glob.glob(os.path.join(__location__, 'data/admin1CodesASCII.json'))
-#    admin1_dict = read_in_admin1(admin1_file[0])
-#    assert "Berlin" == get_admin1("DE", "16", admin1_dict)
-#
-#def test_get_admin1_none():
-#    __location__ = os.path.realpath(os.path.join(os.getcwd(),
-#                       os.path.dirname(__file__)))
-#    admin1_file = glob.glob(os.path.join(__location__, 'data/admin1CodesASCII.json'))
-#    admin1_dict = read_in_admin1(admin1_file[0])
-#    assert "NA" == get_admin1("fakeplace", "16", admin1_dict)
+def test_cts(geo):
+    assert "Kosovo" in geo._cts.keys()
+    assert "Kosovo" not in geo._cts.values()
+    assert "AFG" in geo._cts.values()
+
+def test_country_mentions(geo):
+    doc = nlp("Puerto Cabello is a port city in Venezuela")
+    f = geo._feature_country_mentions(doc)
+    assert f == ('VEN', 1, '', 0)
 
 def test_vector_picking(geo):
     entity = nlp("Mosul")
-    vp = geo.vector_picking(entity)
+    vp = geo._feature_word_embedding(entity)
     assert vp['country_1'] == "IRQ"
 
 def test_cts(geo):
-    out = geo.inv_cts['DEU']
+    out = geo._inv_cts['DEU']
     assert out == "Germany"
 
-def test_syria(geo):
+def test_most_population(geo):
+    res_a = geo.query_geonames("Berlin")
+    res_b = geo.query_geonames("Oklahoma City")
+    res_c = geo.query_geonames("Tripoli")
+    a = geo._feature_most_population(res_a)
+    b = geo._feature_most_population(res_b)
+    c = geo._feature_most_population(res_c)
+    assert a == "DEU"
+    assert b == "USA"
+    assert c == "LBY"
+
+def test_is_country(geo):
+    a = geo.is_country("Senegal")
+    assert a == True
+
+def test_make_country_features(geo):
+    doc = nlp("EULEX is based in Prishtina, Kosovo.")
+    f = geo.make_country_features(doc)
+    assert f[0]['features']['most_alt'] == "XKX"
+    assert f[1]['features']['most_alt'] == "XKX"
+    assert f[0]['features']['word_vec'] == "XKX"
+    assert f[1]['features']['word_vec'] == "XKX"
+    assert f[0]['features']['wv_confid'] > 10
+    assert f[1]['features']['wv_confid'] > 10
+    assert len(f[0]['spans']) == 1
+    assert len(f[1]['spans']) == 1
+
+def test_infer_country1(geo):
     doc = "There's fighting in Aleppo and Homs."
-    loc = geo.doc_to_guess(doc)
+    loc = geo.infer_country(doc)
     assert loc[0]['country_predicted'] == "SYR"
     assert loc[1]['country_predicted'] == "SYR"
 
-def test_germany(geo):
+def test_infer_country2(geo):
     doc = "There's fighting in Berlin and Hamburg."
-    loc = geo.doc_to_guess(doc)
+    loc = geo.infer_country(doc)
     assert loc[0]['country_predicted'] == "DEU"
     assert loc[1]['country_predicted'] == "DEU"
 

@@ -1,1 +1,1 @@
-from .geoparse import Geoparse
+from .geoparse import Geoparser
