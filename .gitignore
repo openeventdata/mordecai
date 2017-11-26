@@ -5,3 +5,9 @@
 *.bin.gz
 *.tar.bz2
 *data/MITIE-models
+*.ipynb
+.cache
+mordecai/.cache
+build/
+dist/
+mordecai.egg-info

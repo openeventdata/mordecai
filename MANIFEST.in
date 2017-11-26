@@ -1,0 +1,2 @@
+recursive-include mordecai/data/ *
+recursive-include mordecai/models/ *
