@@ -68,7 +68,7 @@ You can then run Mordecai as above.
 How does it work?
 -----------------
 
-`Mordecai` accepts text and returns structured geographic information extracted
+Mordecai takes in unstructured text and returns structured geographic information extracted
 from it. 
 
 - It uses [spaCy](https://github.com/explosion/spaCy/)'s named entity recognition to
@@ -80,7 +80,7 @@ from it.
   extracted place names.
 
 - It uses neural networks implemented in [Keras](https://keras.io/) and trained on new annotated
-  data to infer the correct country and correct gazetteer entries for each
+  data labeled with [Prodigy](https://prodi.gy/) to infer the correct country and correct gazetteer entries for each
   placename. 
 
 The training data for the two models includes copyrighted text so cannot be
