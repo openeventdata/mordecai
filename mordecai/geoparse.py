@@ -810,7 +810,11 @@ class Geoparser:
         sorted_meta = sorted_meta[:4]
         sorted_X = sorted_X[:4]
         for n, i in enumerate(sorted_meta):
-            fc = self._code_to_text[i['feature_code']]
+            try:
+                feature_code = i['feature_code']
+                fc = self._code_to_text[feature_code]
+            except Exception as e:
+                fc = ''
             text = ''.join(['"', i['place_name'], '"',
                             ", a ", fc,
                             " in ", i['country_code3'],
@@ -935,13 +939,12 @@ class Geoparser:
             elif loc['country_conf'] < self.country_threshold:
                 res = ""
                 # if the confidence is too low, don't use the country info
-
             try:
                 _ = res['hits']['hits']
                 # If there's no geonames result, what to do?
                 # For now, just continue.
                 # In the future, delete? Or add an empty "loc" field?
-            except TypeError:
+            except (TypeError, KeyError):
                 continue
             # Pick the best place
             X, meta = self.features_for_rank(loc, res)

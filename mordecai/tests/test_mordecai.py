@@ -102,4 +102,6 @@ def test_query(geo):
     results = geo.query_geonames("Berlin")
     assert results['hits']['hits'][15]['country_code3']
 
-
+def test_missing_feature_code(geo):
+    doc = "Congress and in the legislatures of Alabama, California, Florida, and Michigan."
+    locs = geo.geoparse(doc)
