@@ -89,7 +89,20 @@ shared freely, but get in touch with me if you're interested in it.
 API
 --------
 
-`geoparse` is the primary endpoint and the only one that most users will need.
+When instantiating the `Geoparser()` module, the following options can be changed:
+
+- `es_ip` : Where the Geonames Elasticsearch service is running. Defaults to
+    `localhost`, which is where it runs if you're using the default Docker
+    setup described above.
+- `es_port` : What port the Geonames Elasticsearch service is running on.
+    Defaults to `9200`, which is where the Docker setup has it
+- `country_confidence` : Set the country model confidence below which no
+    geolocation will be returned. If it's really low, the model's probably
+    wrong and will return weird results. Defaults to `0.6`. 
+- `verbose` : Return all the features used in the country picking model?
+    Defaults to `False`. 
+
+`.geoparse` is the primary endpoint and the only one that most users will need.
 Other methods are primarily internal to Mordecai but may be directly useful in
 some cases:
 
@@ -103,7 +116,7 @@ some cases:
 Tests
 -----
 
-`mordecai` includes a few unit tests. To run the tests, `cd` into the
+Mordecai includes a few unit tests. To run the tests, `cd` into the
 `mordecai` directory and run:
 
 ```
