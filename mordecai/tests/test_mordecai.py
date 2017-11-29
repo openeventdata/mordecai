@@ -105,3 +105,8 @@ def test_query(geo):
 def test_missing_feature_code(geo):
     doc = "Congress and in the legislatures of Alabama, California, Florida, and Michigan."
     locs = geo.geoparse(doc)
+
+def test_aleppo_geneva(geo):
+    locs = geo.geoparse("Government forces attacked the cities in Aleppo Governorate, while rebel leaders met in Geneva.")
+    assert locs[0]['geo']['country_code3'] == 'SYR'
+    assert locs[1]['geo']['country_code3'] == 'CHE'

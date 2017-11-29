@@ -19,7 +19,7 @@ except NameError:
 
 class Geoparser:
     def __init__(self, es_ip="localhost", es_port="9200", verbose = False,
-                country_threshold = 0.8):
+                country_threshold = 0.6):
         DATA_PATH = pkg_resources.resource_filename('mordecai', 'data/')
         MODELS_PATH = pkg_resources.resource_filename('mordecai', 'models/')
         self._cts = utilities.country_list_maker()
@@ -32,20 +32,24 @@ class Geoparser:
         self._both_codes = utilities.make_country_nationality_list(self._cts, DATA_PATH + "nat_df.csv")
         self._admin1_dict = utilities.read_in_admin1(DATA_PATH + "admin1CodesASCII.json")
         self.conn = utilities.setup_es(es_ip, es_port)
-        #self.country_exact = False # flag if it detects a country UPDATE: not currently holding per-query state like this
-        #self.fuzzy = False # did it have to use fuzziness? UPDATE: not currently holding per-query state like this
         self.country_model = keras.models.load_model(MODELS_PATH + "country_model.h5")
         self.rank_model = keras.models.load_model(MODELS_PATH + "rank_model.h5")
-        #countries = pd.read_csv("nat_df.csv")
-        #nationality = dict(zip(countries.nationality, countries.alpha_3_code))
-        #self._both_codes = {**nationality, **self._cts}
         self._skip_list = utilities.make_skip_list(self._cts)
         self.training_setting = False # make this true if you want training formatted
-        self.country_threshold = country_threshold # if the best guess is below this, don't return
-                                                   # anything at all
+        # if the best country guess is below the country threshold, don't return anything at all
+        self.country_threshold = country_threshold
         feature_codes = pd.read_csv(DATA_PATH + "feature_codes.txt", sep="\t", header = None)
         self._code_to_text = dict(zip(feature_codes[1], feature_codes[3])) # human readable geonames IDs
         self.verbose = verbose # return the full dictionary or just the good parts?
+        try:
+            # https://www.reddit.com/r/Python/comments/3a2erd/exception_catch_not_catching_everything/
+            #with nostderr():
+            self.conn.count()
+        except:
+            raise ConnectionError("Could not establish contact with Elasticsearch at {0} on port {1}. Are you sure it's running? \n".format(es_ip, es_port),
+                 "Mordecai needs access to the Geonames/Elasticsearch gazetteer to function.",
+                 "See https://github.com/openeventdata/mordecai#installation-and-requirements",
+                 "for instructions on setting up Geonames/Elasticsearch")
 
     def _feature_country_mentions(self, doc):
         """
@@ -810,10 +814,10 @@ class Geoparser:
         sorted_meta = sorted_meta[:4]
         sorted_X = sorted_X[:4]
         for n, i in enumerate(sorted_meta):
+            feature_code = i['feature_code']
             try:
-                feature_code = i['feature_code']
                 fc = self._code_to_text[feature_code]
-            except Exception as e:
+            except KeyError:
                 fc = ''
             text = ''.join(['"', i['place_name'], '"',
                             ", a ", fc,
