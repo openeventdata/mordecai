@@ -45,7 +45,7 @@ Example usage
 Installation and Requirements
 --------------------
 
-Mordecai is on PyPI and can be installed with pip:
+Mordecai is on PyPI and can be installed for Python3 with pip:
 
 ```
 pip install mordecai
@@ -63,7 +63,9 @@ tar -xzf geonames_index.tar.gz
 docker run -d -p 127.0.0.1:9200:9200 -v $(pwd)/geonames_index/:/usr/share/elasticsearch/data elasticsearch:5.5.2
 ```
 
-You can then run Mordecai as above.
+You can then run Mordecai as above. See the
+[es-geonames](https://github.com/openeventdata/es-geonames) for the code used
+to produce this index.
 
 How does it work?
 -----------------

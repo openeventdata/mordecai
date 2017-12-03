@@ -1,6 +1,7 @@
 editdistance==0.3.1
 elasticsearch==5.4.0
 elasticsearch-dsl==5.3.0
+h5py>=2.6.0
 Keras==2.0.8
 pandas==0.19.2
 spacy==2.0.3
