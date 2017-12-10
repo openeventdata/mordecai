@@ -952,6 +952,9 @@ class Geoparser:
                 continue
             # Pick the best place
             X, meta = self.features_for_rank(loc, res)
+            if X.shape[1] == 0:
+                # This happens if there are no results...
+                continue
             all_tasks, sorted_meta, sorted_X = self.format_for_prodigy(X, meta, loc['word'], return_feature_subset=True)
             fl_pad = np.pad(sorted_X, ((0, 4 - sorted_X.shape[0]), (0, 0)), 'constant')
             fl_unwrap = fl_pad.flatten()
