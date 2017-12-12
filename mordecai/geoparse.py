@@ -19,7 +19,7 @@ except NameError:
 
 class Geoparser:
     def __init__(self, es_ip="localhost", es_port="9200", verbose = False,
-                country_threshold = 0.6):
+                country_threshold = 0.6, num_threads = 2):
         DATA_PATH = pkg_resources.resource_filename('mordecai', 'data/')
         MODELS_PATH = pkg_resources.resource_filename('mordecai', 'models/')
         self._cts = utilities.country_list_maker()
@@ -41,6 +41,7 @@ class Geoparser:
         feature_codes = pd.read_csv(DATA_PATH + "feature_codes.txt", sep="\t", header = None)
         self._code_to_text = dict(zip(feature_codes[1], feature_codes[3])) # human readable geonames IDs
         self.verbose = verbose # return the full dictionary or just the good parts?
+        self.num_threads = num_threads
         try:
             # https://www.reddit.com/r/Python/comments/3a2erd/exception_catch_not_catching_everything/
             #with nostderr():
@@ -969,4 +970,7 @@ class Geoparser:
 
         return proced
 
-
+    def batch_geoparse(self, text_list):
+        nlped_docs = nlp.pipe(text_list, n_threads = self.num_threads)
+        processed = [self.geoparse(doc) for doc in nlped_docs]
+        return processed
