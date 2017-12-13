@@ -116,3 +116,15 @@ def test_issue_40(geo):
     locs = geo.geoparse(doc)
     assert len(locs) > 2
 
+def test_issue_40(geo):
+    doc_list = ["Government forces attacked the cities in Aleppo Governorate, while rebel leaders met in Geneva.",
+                "EULEX is based in Prishtina, Kosovo.",
+                "Clientelism may depend on brokers."]
+    locs = geo.batch_geoparse(doc_list)
+    assert len(locs) == 3
+    assert locs[0][0]['geo']['geonameid'] == '170063'
+    assert locs[0][1]['country_predicted'] == 'CHE'
+    assert locs[1][0]['geo']['feature_code'] == 'PPLC'
+    assert locs[1][1]['geo']['country_code3'] == 'XKX'
+    assert locs[2] == []
+

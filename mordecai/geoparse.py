@@ -7,19 +7,19 @@ from collections import Counter
 from functools import lru_cache
 import editdistance
 import pkg_resources
-
-from . import utilities
-
 import spacy
+from . import utilities
+from multiprocessing.pool import ThreadPool
+
 
 try:
     nlp
 except NameError:
-    nlp = spacy.load('en_core_web_lg')
+    nlp = spacy.load('en_core_web_lg', disable=['parser', 'tagger'])
 
 class Geoparser:
     def __init__(self, es_ip="localhost", es_port="9200", verbose = False,
-                country_threshold = 0.6, num_threads = 2):
+                country_threshold = 0.6, n_threads = 4):
         DATA_PATH = pkg_resources.resource_filename('mordecai', 'data/')
         MODELS_PATH = pkg_resources.resource_filename('mordecai', 'models/')
         self._cts = utilities.country_list_maker()
@@ -41,7 +41,7 @@ class Geoparser:
         feature_codes = pd.read_csv(DATA_PATH + "feature_codes.txt", sep="\t", header = None)
         self._code_to_text = dict(zip(feature_codes[1], feature_codes[3])) # human readable geonames IDs
         self.verbose = verbose # return the full dictionary or just the good parts?
-        self.num_threads = num_threads
+        self.n_threads = n_threads
         try:
             # https://www.reddit.com/r/Python/comments/3a2erd/exception_catch_not_catching_everything/
             #with nostderr():
@@ -274,7 +274,7 @@ class Geoparser:
         else:
             return False
 
-    @lru_cache(maxsize=200)
+    @lru_cache(maxsize=1000)
     def query_geonames(self, placename):
         """
         Wrap search parameters into an elasticsearch query to the geonames index
@@ -297,7 +297,7 @@ class Geoparser:
                                  "fields": ['name', 'asciiname', 'alternativenames'],
                                 "type" : "phrase"}}
             r = Q("match", feature_code='PCLI')
-            res = self.conn.query(q).query(r)[0:5].execute()
+            res = self.conn.query(q).query(r)[0:5].execute()  # always 5
             #self.country_exact = True
 
         else:
@@ -324,7 +324,7 @@ class Geoparser:
         es_result = utilities.structure_results(res)
         return es_result
 
-    @lru_cache(maxsize=200)
+    @lru_cache(maxsize=1000)
     def query_geonames_country(self, placename, country):
         """
         Like query_geonames, but this time limited to a specified country.
@@ -428,7 +428,7 @@ class Geoparser:
             to be renamed "meta" or be deleted.)
         """
         if not hasattr(doc, "ents"):
-            text = nlp(doc)
+            doc = nlp(doc)
         # initialize the place to store finalized tasks
         task_list = []
 
@@ -964,13 +964,16 @@ class Geoparser:
             loc['geo'] = sorted_meta[prediction.argmax()]
             loc['place_confidence'] = place_confidence
 
-
         if not verbose:
             proced = self.clean_proced(proced)
 
         return proced
 
     def batch_geoparse(self, text_list):
-        nlped_docs = nlp.pipe(text_list, n_threads = self.num_threads)
-        processed = [self.geoparse(doc) for doc in nlped_docs]
+        nlped_docs = nlp.pipe(text_list, n_threads = self.n_threads)
+        pool = ThreadPool(self.n_threads)
+        processed = pool.map(self.geoparse, nlped_docs)
+        pool.close()
+        pool.join()
         return processed
+
