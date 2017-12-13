@@ -51,6 +51,12 @@ Mordecai is on PyPI and can be installed for Python3 with pip:
 pip install mordecai
 ```
 
+You can then download the required spaCy NLP model:
+
+```
+python -m spacy download en_core_web_lg
+```
+
 In order to work, Mordecai needs access to a Geonames gazetteer running in
 Elasticsearch. The easiest way to set it up is by running the following
 commands (you must have [Docker](https://docs.docker.com/engine/installation/)
@@ -103,6 +109,8 @@ When instantiating the `Geoparser()` module, the following options can be change
     wrong and will return weird results. Defaults to `0.6`. 
 - `verbose` : Return all the features used in the country picking model?
     Defaults to `False`. 
+- `n_threads`: used in the `batch_geoparse` method to set the number of threads
+    to run spaCy's `nlp.pipe` process and `geoparse` as a whole.
 
 `.geoparse` is the primary endpoint and the only one that most users will need.
 Other methods are primarily internal to Mordecai but may be directly useful in
@@ -114,6 +122,10 @@ some cases:
     search over Geonames in Elasticsearch
 - methods with the `_feature` prefix are internal methods for
     calculating country picking features from text.
+
+`batch_geoparse` is an experimental endpoint that takes in a list of documents,
+batch processes them, and returns a corresponding list of lists. It currently
+around twice as fast as `geoparse`.
 
 Tests
 -----

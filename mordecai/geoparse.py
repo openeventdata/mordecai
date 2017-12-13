@@ -970,6 +970,22 @@ class Geoparser:
         return proced
 
     def batch_geoparse(self, text_list):
+        """
+        Batch geoparsing function. Take in a list of text documents and return a list of lists
+        of the geoparsed documents. The speed improvements come from using spaCy's `nlp.pipe` and by multithreading
+        calls to `geoparse`.
+
+        Parameters
+        ----------
+        text_list : list of strs
+            List of documents. The documents should not have been pre-processed by spaCy.
+
+        Returns
+        -------
+        proced : list of list of dicts
+            The list is the same length as the input list of documents. Each element is a list of geolocated entities.
+        """
+
         nlped_docs = nlp.pipe(text_list, n_threads = self.n_threads)
         pool = ThreadPool(self.n_threads)
         processed = pool.map(self.geoparse, nlped_docs)
