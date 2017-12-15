@@ -110,3 +110,21 @@ def test_aleppo_geneva(geo):
     locs = geo.geoparse("Government forces attacked the cities in Aleppo Governorate, while rebel leaders met in Geneva.")
     assert locs[0]['geo']['country_code3'] == 'SYR'
     assert locs[1]['geo']['country_code3'] == 'CHE'
+
+def test_issue_40(geo):
+    doc = "In early 1938, the Prime Minister cut grants-in-aid to the provinces, effectively killing the relief project scheme. Premier Thomas Dufferin Pattullo closed the projects in April, claiming that British Columbia could not shoulder the burden alone. Unemployed men again flocked to Vancouver to protest government insensitivity and intransigence to their plight. The RCPU organized demonstrations and tin-canning (organized begging) in the city. Under the guidance of twenty-six-year-old Steve Brodie, the leader of the Youth Division who had cut his activist teeth during the 1935 relief camp strike, protesters occupied Hotel Georgia, the Vancouver Art Gallery (then located at 1145 West Georgia Street), and the main post office (now the Sinclair Centre)."
+    locs = geo.geoparse(doc)
+    assert len(locs) > 2
+
+def test_issue_40(geo):
+    doc_list = ["Government forces attacked the cities in Aleppo Governorate, while rebel leaders met in Geneva.",
+                "EULEX is based in Prishtina, Kosovo.",
+                "Clientelism may depend on brokers."]
+    locs = geo.batch_geoparse(doc_list)
+    assert len(locs) == 3
+    assert locs[0][0]['geo']['geonameid'] == '170063'
+    assert locs[0][1]['country_predicted'] == 'CHE'
+    assert locs[1][0]['geo']['feature_code'] == 'PPLC'
+    assert locs[1][1]['geo']['country_code3'] == 'XKX'
+    assert locs[2] == []
+
