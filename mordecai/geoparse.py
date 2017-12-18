@@ -4,13 +4,16 @@ from elasticsearch_dsl.query import MultiMatch
 from elasticsearch_dsl import Search, Q
 import numpy as np
 from collections import Counter
-from functools import lru_cache
 import editdistance
 import pkg_resources
 import spacy
 from . import utilities
 from multiprocessing.pool import ThreadPool
-
+try:
+    from functools import lru_cache
+except ImportError:
+    from backports.functools_lru_cache import lru_cache
+    print("Mordecai requires Python 3 and seems to be running in Python 2.")
 
 try:
     nlp

@@ -38,14 +38,14 @@ Example usage
   'word': 'Ottawa'}]
 ```
 
-`mordecai` requires a running Elasticsearch service with Geonames in it. See
+Mordecai requires a running Elasticsearch service with Geonames in it. See
 "Installation" below for instructions.
 
 
 Installation and Requirements
 --------------------
 
-Mordecai is on PyPI and can be installed for Python3 with pip:
+Mordecai is on PyPI and can be installed for Python 3 with pip:
 
 ```
 pip install mordecai
