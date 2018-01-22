@@ -128,3 +128,25 @@ def test_issue_40(geo):
     assert locs[1][1]['geo']['country_code3'] == 'XKX'
     assert locs[2] == []
 
+def test_issue_45(geo):
+    text = """Santa Cruz is a first class municipality in
+the province of Davao del Sur, Philippines. It has a population of 81,093
+people as of 2010. The Municipality of Santa Cruz is part of Metropolitan
+Davao. Santa Cruz is politically subdivided into 18 barangays. Of the 18
+barangays, 7 are uplands, 9 are upland-lowland and coastal and 2 are
+lowland-coastal. Pista sa Kinaiyahan A yearly activity conducted every last
+week of April as a tribute to the Mother Nature through tree-growing, cleanup
+activities and Boulder Face challenge. Araw ng Santa Cruz It is celebrated
+every October 5 in commemoration of the legal creation of the municipality in
+1884. Highlights include parades, field demonstrations, trade fairs, carnivals
+and traditional festivities. Sinabbadan Festival A festival of ethnic ritual
+and dances celebrated every September. Santa Cruz is accessible by land
+transportation vehicles plying the Davao-Digos City, Davao-Kidapawan City,
+Davao-Cotabato City, Davao-Koronadal City and Davao-Tacurong City routes
+passing through the town's single, 27 kilometres (17 mi) stretch of national
+highway that traverses its 11 barangays. From Davao City, the administrative
+center of Region XI, it is 38 kilometres (24 mi) away within a 45-minute ride,
+while it is 16 kilometres (9.9 mi) or about 15-minute ride from provincial
+capital city of Digos."""
+    locs = geo.geoparse(text)
+    assert len(locs) > 0

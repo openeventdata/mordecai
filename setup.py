@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='mordecai',
-      version='2.0.0a3',
+      version='2.0.0a6',
       description='Full text geoparsing and event geocoding',
       url='http://github.com/openeventdata/mordecai/',
       author='Andy Halterman',
@@ -17,7 +17,8 @@ setup(name='mordecai',
                           'pandas>=0.19.2',
                           'spacy>=2.0.3',
                           'tensorflow>=1.3.0',
-                          'numpy>=1.12'],
+                          'numpy>=1.12',
+                          'urllib3>=1.22'],
       dependency_links=['https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-2.0.0/en_core_web_lg-2.0.0.tar.gz'],
       include_package_data=True,
       package_data = {'data': ['admin1CodesASCII.json',

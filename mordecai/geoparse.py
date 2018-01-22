@@ -18,7 +18,10 @@ except ImportError:
 try:
     nlp
 except NameError:
-    nlp = spacy.load('en_core_web_lg', disable=['parser', 'tagger'])
+    try:
+        nlp = spacy.load('en_core_web_lg', disable=['parser', 'tagger'])
+    except OSError:
+        print("ERROR: No spaCy NLP model installed. Install with this command: `python -m spacy download en_core_web_lg`.")
 
 class Geoparser:
     def __init__(self, es_ip="localhost", es_port="9200", verbose = False,

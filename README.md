@@ -45,19 +45,19 @@ Mordecai requires a running Elasticsearch service with Geonames in it. See
 Installation and Requirements
 --------------------
 
-Mordecai is on PyPI and can be installed for Python 3 with pip:
+1. Mordecai is on PyPI and can be installed for Python 3 with pip:
 
 ```
 pip install mordecai
 ```
 
-You can then download the required spaCy NLP model:
+2. You should then download the required spaCy NLP model:
 
 ```
 python -m spacy download en_core_web_lg
 ```
 
-In order to work, Mordecai needs access to a Geonames gazetteer running in
+3. In order to work, Mordecai needs access to a Geonames gazetteer running in
 Elasticsearch. The easiest way to set it up is by running the following
 commands (you must have [Docker](https://docs.docker.com/engine/installation/)
 installed first).
@@ -69,8 +69,7 @@ tar -xzf geonames_index.tar.gz
 docker run -d -p 127.0.0.1:9200:9200 -v $(pwd)/geonames_index/:/usr/share/elasticsearch/data elasticsearch:5.5.2
 ```
 
-You can then run Mordecai as above. See the
-[es-geonames](https://github.com/openeventdata/es-geonames) for the code used
+See the [es-geonames](https://github.com/openeventdata/es-geonames) for the code used
 to produce this index.
 
 How does it work?
@@ -112,7 +111,7 @@ When instantiating the `Geoparser()` module, the following options can be change
 - `n_threads`: used in the `batch_geoparse` method to set the number of threads
     to run spaCy's `nlp.pipe` process and `geoparse` as a whole.
 
-`.geoparse` is the primary endpoint and the only one that most users will need.
+`geoparse` is the primary endpoint and the only one that most users will need.
 Other methods are primarily internal to Mordecai but may be directly useful in
 some cases:
 
