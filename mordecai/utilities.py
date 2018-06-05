@@ -247,3 +247,9 @@ def setup_es(es_ip, es_port):
     CLIENT = Elasticsearch([{'host' : es_ip, 'port' : es_port}])
     S = Search(using=CLIENT, index="geonames")
     return S
+
+def check_geonames_date(conn):
+    r = Q("match", geonameid='4943351')
+    result = conn.query(r).execute()
+    output = structure_results(result)
+    return output['hits']['hits'][0]['modification_date']

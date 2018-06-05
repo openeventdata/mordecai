@@ -27,7 +27,7 @@ except NameError:
 
 class Geoparser:
     def __init__(self, es_ip="localhost", es_port="9200", verbose = False,
-                country_threshold = 0.6, n_threads = 4):
+                country_threshold = 0.6, n_threads = 4, mod_date = "2018-06-05"):
         DATA_PATH = pkg_resources.resource_filename('mordecai', 'data/')
         MODELS_PATH = pkg_resources.resource_filename('mordecai', 'models/')
         self._cts = utilities.country_list_maker()
@@ -59,6 +59,9 @@ class Geoparser:
                  "Mordecai needs access to the Geonames/Elasticsearch gazetteer to function.",
                  "See https://github.com/openeventdata/mordecai#installation-and-requirements",
                  "for instructions on setting up Geonames/Elasticsearch")
+        es_date = utilities.check_geonames_date(self.conn)
+        if es_date != mod_date:
+            print("You may be using an outdated Geonames index. Your index is from {0}, while the most recent is {1}. Please see https://github.com/openeventdata/mordecai/ for instructions on updating.".format(es_date, mod_date))
 
     def _feature_country_mentions(self, doc):
         """
