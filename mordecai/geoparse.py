@@ -280,7 +280,7 @@ class Geoparser:
         else:
             return False
 
-    @lru_cache(maxsize=1000)
+    @lru_cache(maxsize=250)
     def query_geonames(self, placename):
         """
         Wrap search parameters into an elasticsearch query to the geonames index
@@ -330,7 +330,7 @@ class Geoparser:
         es_result = utilities.structure_results(res)
         return es_result
 
-    @lru_cache(maxsize=1000)
+    @lru_cache(maxsize=250)
     def query_geonames_country(self, placename, country):
         """
         Like query_geonames, but this time limited to a specified country.

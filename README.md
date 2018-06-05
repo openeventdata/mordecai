@@ -126,6 +126,9 @@ some cases:
 batch processes them, and returns a corresponding list of lists. It currently
 around twice as fast as `geoparse`.
 
+Advanced users on large machines can modify the `lru_cache` parameter from 250
+to 1000. This will use more memory but will increase parsing speed.
+
 Tests
 -----
 
