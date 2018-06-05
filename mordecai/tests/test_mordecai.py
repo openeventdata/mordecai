@@ -2,6 +2,8 @@ import os
 import sys
 import glob
 import json
+from elasticsearch_dsl import Q
+from ..utilities import structure_results
 #from ..geoparse import Geoparser
 
 import spacy
@@ -150,3 +152,11 @@ while it is 16 kilometres (9.9 mi) or about 15-minute ride from provincial
 capital city of Digos."""
     locs = geo.geoparse(text)
     assert len(locs) > 0
+
+def test_ohio(geo):
+    # This was a problem in issue 41
+    r = Q("match", geonameid='5165418')
+    result = geo.conn.query(r).execute()
+    output = structure_results(result)
+    assert output['hits']['hits'][0]['asciiname'] == "Ohio"
+
