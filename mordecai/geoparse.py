@@ -9,6 +9,8 @@ import pkg_resources
 import spacy
 from . import utilities
 from multiprocessing.pool import ThreadPool
+from elasticsearch.exceptions import ConnectionTimeout
+
 try:
     from functools import lru_cache
 except ImportError:
