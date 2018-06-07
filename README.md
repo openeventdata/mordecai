@@ -72,6 +72,26 @@ docker run -d -p 127.0.0.1:9200:9200 -v $(pwd)/geonames_index/:/usr/share/elasti
 See the [es-geonames](https://github.com/openeventdata/es-geonames) for the code used
 to produce this index.
 
+To update the index, simply shut down the old container, re-download the index
+from s3, and restart the container with the new index.
+
+Citing
+------
+
+If you use this software in academic work, please cite as 
+
+```
+@article{halterman2017mordecai,
+  title={Mordecai: Full Text Geoparsing and Event Geocoding},
+  author={Halterman, Andrew},
+  journal={The Journal of Open Source Software},
+  volume={2},
+  number={9},
+  year={2017},
+  doi={10.21105/joss.00091}
+}
+```
+
 How does it work?
 -----------------
 
@@ -93,8 +113,8 @@ from it.
 The training data for the two models includes copyrighted text so cannot be
 shared freely, but get in touch with me if you're interested in it.
 
-API
---------
+API and Configuration
+---------------------
 
 When instantiating the `Geoparser()` module, the following options can be changed:
 
@@ -148,7 +168,8 @@ Acknowledgements
 ----------------
 
 An earlier verion of this software was donated to the Open Event Data Alliance
-by Caerus Associates.  See [Releases](https://github.com/openeventdata/mordecai/releases) or the [legacy-docker](https://github.com/openeventdata/mordecai/tree/legacy-docker) branch for the
+by Caerus Associates.  See [Releases](https://github.com/openeventdata/mordecai/releases) 
+or the [legacy-docker](https://github.com/openeventdata/mordecai/tree/legacy-docker) branch for the
 2015-2016 and the 2016-2017 production versions of Mordecai.
 
 This work was funded in part by DARPA's XDATA program, the U.S. Army Research
@@ -159,28 +180,6 @@ recommendations expressed in this material are those of the authors and do not
 necessarily reflect the views of DARPA, ARO, Minerva, NSF, or the U.S.
 government.
 
-Citing
-------
-
-Send a note if you use Mordecai! It's always interesting to hear what people
-are doing with it and whether it's doing what they want it to.
-
-If you use this software in academic work, please cite as 
-
-Andrew Halterman, (2017). Mordecai: Full Text Geoparsing and Event Geocoding. *Journal of Open Source
-Software*, 2(9), 91, doi:10.21105/joss.00091
-
-```
-@article{halterman2017mordecai,
-  title={Mordecai: Full Text Geoparsing and Event Geocoding},
-  author={Halterman, Andrew},
-  journal={The Journal of Open Source Software},
-  volume={2},
-  number={9},
-  year={2017},
-  doi={10.21105/joss.00091}
-}
-```
 
 Contributing
 ------------
