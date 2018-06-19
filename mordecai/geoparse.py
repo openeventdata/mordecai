@@ -307,8 +307,8 @@ class Geoparser:
             q = {"multi_match": {"query": placename,
                                  "fields": ['name', 'asciiname', 'alternativenames'],
                                 "type" : "phrase"}}
-            r = Q("match", feature_code='PCLI')
-            res = self.conn.query(q).query(r)[0:5].execute()  # always 5
+            #r = Q("match", feature_code='PCLI')
+            res = self.conn.filter("term", feature_code='PCLI').query(q)[0:5].execute()  # always 5
             #self.country_exact = True
 
         else:
@@ -344,8 +344,8 @@ class Geoparser:
         q = {"multi_match": {"query": placename,
                              "fields": ['name^5', 'asciiname^5', 'alternativenames'],
                             "type" : "phrase"}}
-        r = Q("match", country_code3=country)
-        res = self.conn.query(q).query(r)[0:50].execute()
+        #r = Q("match", country_code3=country)
+        res = self.conn.filter("term", country_code3=country).query(q)[0:50].execute()
 
         # if no results, use some fuzziness, but still require all terms to be present.
         # Fuzzy is not allowed in "phrase" searches.
@@ -356,8 +356,9 @@ class Geoparser:
                                      "fuzziness" : 1,
                                      "operator":   "and"},
                 }
-            r = Q("match", country_code3=country)
-            res = self.conn.query(q).query(r)[0:50].execute()
+            #r = Q("match", country_code3=country)
+            #res = self.conn.query(q).query(r)[0:50].execute()
+            res = self.conn.filter("term", country_code3=country).query(q)[0:50].execute()
 
         out = utilities.structure_results(res)
         return out
