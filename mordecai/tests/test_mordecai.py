@@ -61,15 +61,41 @@ def test_make_country_features(geo):
     assert len(f[0]['spans']) == 1
     assert len(f[1]['spans']) == 1
 
+def test_make_country_features_thread(geo_thread):
+    doc = nlp("EULEX is based in Prishtina, Kosovo.")
+    f = geo_thread.make_country_features(doc)
+    assert f[0]['features']['most_alt'] == "XKX"
+    assert f[1]['features']['most_alt'] == "XKX"
+    assert f[0]['features']['word_vec'] == "XKX"
+    assert f[1]['features']['word_vec'] == "XKX"
+    assert f[0]['features']['wv_confid'] > 10
+    assert f[1]['features']['wv_confid'] > 10
+    assert len(f[0]['spans']) == 1
+    assert len(f[1]['spans']) == 1
+
+
 def test_infer_country1(geo):
     doc = "There's fighting in Aleppo and Homs."
     loc = geo.infer_country(doc)
     assert loc[0]['country_predicted'] == "SYR"
     assert loc[1]['country_predicted'] == "SYR"
 
+def test_infer_country1_thread(geo_thread):
+    doc = "There's fighting in Aleppo and Homs."
+    loc = geo_thread.infer_country(doc)
+    assert loc[0]['country_predicted'] == "SYR"
+    assert loc[1]['country_predicted'] == "SYR"
+
+
 def test_infer_country2(geo):
     doc = "There's fighting in Berlin and Hamburg."
     loc = geo.infer_country(doc)
+    assert loc[0]['country_predicted'] == "DEU"
+    assert loc[1]['country_predicted'] == "DEU"
+
+def test_infer_country2_thread(geo_thread):
+    doc = "There's fighting in Berlin and Hamburg."
+    loc = geo_thread.infer_country(doc)
     assert loc[0]['country_predicted'] == "DEU"
     assert loc[1]['country_predicted'] == "DEU"
 
@@ -118,7 +144,12 @@ def test_issue_40(geo):
     locs = geo.geoparse(doc)
     assert len(locs) > 2
 
-def test_issue_40(geo):
+def test_issue_40(geo_thread):
+    doc = "In early 1938, the Prime Minister cut grants-in-aid to the provinces, effectively killing the relief project scheme. Premier Thomas Dufferin Pattullo closed the projects in April, claiming that British Columbia could not shoulder the burden alone. Unemployed men again flocked to Vancouver to protest government insensitivity and intransigence to their plight. The RCPU organized demonstrations and tin-canning (organized begging) in the city. Under the guidance of twenty-six-year-old Steve Brodie, the leader of the Youth Division who had cut his activist teeth during the 1935 relief camp strike, protesters occupied Hotel Georgia, the Vancouver Art Gallery (then located at 1145 West Georgia Street), and the main post office (now the Sinclair Centre)."
+    locs = geo_thread.geoparse(doc)
+    assert len(locs) > 2
+
+def test_issue_40_2(geo):
     doc_list = ["Government forces attacked the cities in Aleppo Governorate, while rebel leaders met in Geneva.",
                 "EULEX is based in Prishtina, Kosovo.",
                 "Clientelism may depend on brokers."]
@@ -151,6 +182,29 @@ center of Region XI, it is 38 kilometres (24 mi) away within a 45-minute ride,
 while it is 16 kilometres (9.9 mi) or about 15-minute ride from provincial
 capital city of Digos."""
     locs = geo.geoparse(text)
+    assert len(locs) > 0
+
+def test_issue_45_thread(geo_thread):
+    text = """Santa Cruz is a first class municipality in
+the province of Davao del Sur, Philippines. It has a population of 81,093
+people as of 2010. The Municipality of Santa Cruz is part of Metropolitan
+Davao. Santa Cruz is politically subdivided into 18 barangays. Of the 18
+barangays, 7 are uplands, 9 are upland-lowland and coastal and 2 are
+lowland-coastal. Pista sa Kinaiyahan A yearly activity conducted every last
+week of April as a tribute to the Mother Nature through tree-growing, cleanup
+activities and Boulder Face challenge. Araw ng Santa Cruz It is celebrated
+every October 5 in commemoration of the legal creation of the municipality in
+1884. Highlights include parades, field demonstrations, trade fairs, carnivals
+and traditional festivities. Sinabbadan Festival A festival of ethnic ritual
+and dances celebrated every September. Santa Cruz is accessible by land
+transportation vehicles plying the Davao-Digos City, Davao-Kidapawan City,
+Davao-Cotabato City, Davao-Koronadal City and Davao-Tacurong City routes
+passing through the town's single, 27 kilometres (17 mi) stretch of national
+highway that traverses its 11 barangays. From Davao City, the administrative
+center of Region XI, it is 38 kilometres (24 mi) away within a 45-minute ride,
+while it is 16 kilometres (9.9 mi) or about 15-minute ride from provincial
+capital city of Digos."""
+    locs = geo_thread.geoparse(text)
     assert len(locs) > 0
 
 def test_ohio(geo):

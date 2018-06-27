@@ -10,6 +10,7 @@ import spacy
 from . import utilities
 from multiprocessing.pool import ThreadPool
 from elasticsearch.exceptions import ConnectionTimeout
+import multiprocessing
 
 try:
     from functools import lru_cache
@@ -27,7 +28,7 @@ except NameError:
 
 class Geoparser:
     def __init__(self, es_ip="localhost", es_port="9200", verbose = False,
-                country_threshold = 0.6, n_threads = 4, mod_date = "2018-06-05"):
+                country_threshold = 0.6, threads = False, mod_date = "2018-06-05"):
         DATA_PATH = pkg_resources.resource_filename('mordecai', 'data/')
         MODELS_PATH = pkg_resources.resource_filename('mordecai', 'models/')
         self._cts = utilities.country_list_maker()
@@ -49,7 +50,7 @@ class Geoparser:
         feature_codes = pd.read_csv(DATA_PATH + "feature_codes.txt", sep="\t", header = None)
         self._code_to_text = dict(zip(feature_codes[1], feature_codes[3])) # human readable geonames IDs
         self.verbose = verbose # return the full dictionary or just the good parts?
-        self.n_threads = n_threads
+        self.threads = threads
         try:
             # https://www.reddit.com/r/Python/comments/3a2erd/exception_catch_not_catching_everything/
             #with nostderr():
@@ -285,7 +286,7 @@ class Geoparser:
         else:
             return False
 
-    @lru_cache(maxsize=250)
+    #@lru_cache(maxsize=250)
     def query_geonames(self, placename):
         """
         Wrap search parameters into an elasticsearch query to the geonames index
@@ -307,18 +308,13 @@ class Geoparser:
             q = {"multi_match": {"query": placename,
                                  "fields": ['name', 'asciiname', 'alternativenames'],
                                 "type" : "phrase"}}
-            #r = Q("match", feature_code='PCLI')
             res = self.conn.filter("term", feature_code='PCLI').query(q)[0:5].execute()  # always 5
-            #self.country_exact = True
-
         else:
             # second, try for an exact phrase match
             q = {"multi_match": {"query": placename,
                                  "fields": ['name^5', 'asciiname^5', 'alternativenames'],
                                 "type" : "phrase"}}
-
             res = self.conn.query(q)[0:50].execute()
-
             # if no results, use some fuzziness, but still require all terms to be present.
             # Fuzzy is not allowed in "phrase" searches.
             if res.hits.total == 0:
@@ -328,14 +324,11 @@ class Geoparser:
                                          "fuzziness" : 1,
                                          "operator":   "and"},
                         }
-                #self.fuzzy = True  # idea was to preserve this info as a feature, but not using state like this
                 res = self.conn.query(q)[0:50].execute()
-
-
         es_result = utilities.structure_results(res)
         return es_result
 
-    @lru_cache(maxsize=250)
+    #@lru_cache(maxsize=250)
     def query_geonames_country(self, placename, country):
         """
         Like query_geonames, but this time limited to a specified country.
@@ -359,9 +352,31 @@ class Geoparser:
             #r = Q("match", country_code3=country)
             #res = self.conn.query(q).query(r)[0:50].execute()
             res = self.conn.filter("term", country_code3=country).query(q)[0:50].execute()
-
         out = utilities.structure_results(res)
         return out
+
+
+    def proc_lookup(self, loc):
+        try:
+           loc = self.query_geonames(loc['word'])
+        except ConnectionTimeout:
+           loc = ""
+        return loc
+
+    def proc_lookup_country(self, loc):
+        if loc['country_conf'] >= self.country_threshold:
+            loc = self.query_geonames_country(loc['word'], loc['country_predicted'])
+            return loc
+        else:
+            return ""
+
+    def simple_lookup(self, word):
+        try:
+           loc = self.query_geonames(word)
+        except ConnectionTimeout:
+           loc = ""
+        return loc
+
 
     def _feature_location_type_mention(self, ent):
         """
@@ -422,7 +437,6 @@ class Geoparser:
         return (feature_class, feature_code)
 
 
-
     def make_country_features(self, doc, require_maj = False):
         """
         Create features for the country picking model. Function where all the individual
@@ -450,7 +464,9 @@ class Geoparser:
         # get explicit counts of country names
         ct_mention, ctm_count1, ct_mention2, ctm_count2 = self._feature_country_mentions(doc)
 
-        # now iterate through the entities, skipping irrelevant ones and countries
+        #  pull out the place names, skipping empty ones, countries, and known
+        #  junk from the skip list (like "Atlanic Ocean"
+        ents = []
         for ent in doc.ents:
             if not ent.text.strip():
                 continue
@@ -459,11 +475,29 @@ class Geoparser:
             # don't include country names (make a parameter)
             if ent.text.strip() in self._skip_list:
                 continue
+            ents.append(ent)
 
-            ## just for training purposes
-            #if ent.text.strip() in self._just_cts.keys():
-            #    continue
+        # Look them up in geonames, either sequentially if no threading, or
+        # in parallel if threads.
+        if self.threads:
+            pool = ThreadPool(len(ents))
+            ent_text = [i.text for i in ents]
+            ent_results = pool.map(self.simple_lookup, ent_text)
+            pool.close()
+            pool.join()
 
+        else:
+             ent_results = []
+             for ent in ents:
+                try:
+                    result = self.query_geonames(ent.text)
+                except ConnectionTimeout:
+                    result = ""
+                ent_results.append(result)
+
+
+        for n, ent in enumerate(ents):
+            result = ent_results[n]
             #skip_list.add(ent.text.strip())
             ent_label = ent.label_ # destroyed by trimming
             ent = self.clean_entity(ent)
@@ -482,10 +516,10 @@ class Geoparser:
             class_mention, code_mention = self._feature_location_type_mention(ent)
 
             ##### ES-based features
-            try:
-                result = self.query_geonames(ent.text)
-            except ConnectionTimeout:
-                result = ""
+            #try:
+            #    result = self.query_geonames(ent.text)
+            #except ConnectionTimeout:
+            #    result = ""
 
             # build results-based features
             most_alt = self._feature_most_alternative(result)
@@ -502,7 +536,6 @@ class Geoparser:
             except Exception as e:
                 print("Problem taking majority vote: ", ent, e)
                 maj_vote = ""
-
 
             if not maj_vote:
                 maj_vote = ""
@@ -950,12 +983,24 @@ class Geoparser:
             pass
             # logging!
             #print("Nothing came back from infer_country...")
-        for loc in proced:
-            if loc['country_conf'] >= self.country_threshold: # shrug
-                res = self.query_geonames_country(loc['word'], loc['country_predicted'])
-            elif loc['country_conf'] < self.country_threshold:
-                res = ""
+
+        if self.threads:
+            pool = ThreadPool(len(proced))
+            results = pool.map(self.proc_lookup_country, proced)
+            pool.close()
+            pool.join()
+        else:
+            results = []
+            for loc in proced:
                 # if the confidence is too low, don't use the country info
+                if loc['country_conf'] > self.country_threshold:
+                    res = self.query_geonames_country(loc['word'], loc['country_predicted'])
+                    results.append(res)
+                else:
+                    results.append("")
+
+        for n, loc in enumerate(proced):
+            res = results[n]
             try:
                 _ = res['hits']['hits']
                 # If there's no geonames result, what to do?
@@ -997,11 +1042,14 @@ class Geoparser:
         proced : list of list of dicts
             The list is the same length as the input list of documents. Each element is a list of geolocated entities.
         """
-
-        nlped_docs = nlp.pipe(text_list, n_threads = self.n_threads)
-        pool = ThreadPool(self.n_threads)
-        processed = pool.map(self.geoparse, nlped_docs)
-        pool.close()
-        pool.join()
+        if not self.threads:
+            print("Error: can't run batch_geoparse without setting threads = True.")
+            return
+        nlped_docs = nlp.pipe(text_list, multiprocessing.cpu_count())
+        #pool = ThreadPool(self.n_threads)
+        #processed = pool.map(self.geoparse, nlped_docs)
+        #pool.close()
+        #pool.join()
+        processed = [self.geoparse(i) for i in nlped_docs]
         return processed
 
