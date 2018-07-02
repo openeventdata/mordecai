@@ -1,7 +1,6 @@
 import keras
 import pandas as pd
-from elasticsearch_dsl.query import MultiMatch
-from elasticsearch_dsl import Search, Q
+from elasticsearch_dsl import Q
 import numpy as np
 from collections import Counter
 import editdistance
@@ -9,8 +8,9 @@ import pkg_resources
 import spacy
 from . import utilities
 from multiprocessing.pool import ThreadPool
-from elasticsearch.exceptions import ConnectionTimeout
+from elasticsearch.exceptions import ConnectionTimeout, ConnectionError
 import multiprocessing
+from tqdm import tqdm
 
 try:
     from functools import lru_cache
@@ -23,12 +23,15 @@ try:
 except NameError:
     try:
         nlp = spacy.load('en_core_web_lg', disable=['parser', 'tagger'])
+        #nlp = spacy.load('en_core_web_lg', disable=['tagger'])
     except OSError:
         print("ERROR: No spaCy NLP model installed. Install with this command: `python -m spacy download en_core_web_lg`.")
 
+
 class Geoparser:
     def __init__(self, es_ip="localhost", es_port="9200", verbose = False,
-                country_threshold = 0.6, threads = False, mod_date = "2018-06-05"):
+                country_threshold = 0.6, threads = False, progress = True,
+                 mod_date = "2018-06-05"):
         DATA_PATH = pkg_resources.resource_filename('mordecai', 'data/')
         MODELS_PATH = pkg_resources.resource_filename('mordecai', 'models/')
         self._cts = utilities.country_list_maker()
@@ -50,6 +53,7 @@ class Geoparser:
         feature_codes = pd.read_csv(DATA_PATH + "feature_codes.txt", sep="\t", header = None)
         self._code_to_text = dict(zip(feature_codes[1], feature_codes[3])) # human readable geonames IDs
         self.verbose = verbose # return the full dictionary or just the good parts?
+        self.progress = progress # display progress bars?
         self.threads = threads
         try:
             # https://www.reddit.com/r/Python/comments/3a2erd/exception_catch_not_catching_everything/
@@ -286,7 +290,7 @@ class Geoparser:
         else:
             return False
 
-    #@lru_cache(maxsize=250)
+    @lru_cache(maxsize=250)
     def query_geonames(self, placename):
         """
         Wrap search parameters into an elasticsearch query to the geonames index
@@ -328,7 +332,7 @@ class Geoparser:
         es_result = utilities.structure_results(res)
         return es_result
 
-    #@lru_cache(maxsize=250)
+    @lru_cache(maxsize=250)
     def query_geonames_country(self, placename, country):
         """
         Like query_geonames, but this time limited to a specified country.
@@ -477,6 +481,9 @@ class Geoparser:
                 continue
             ents.append(ent)
 
+        if not ents:
+            return []
+
         # Look them up in geonames, either sequentially if no threading, or
         # in parallel if threads.
         if self.threads:
@@ -494,7 +501,6 @@ class Geoparser:
                 except ConnectionTimeout:
                     result = ""
                 ent_results.append(result)
-
 
         for n, ent in enumerate(ents):
             result = ent_results[n]
@@ -543,17 +549,16 @@ class Geoparser:
             # We only want all this junk for the labeling task. We just want to straight to features
             # and the model when in production.
 
-
             try:
-                start = ent.start_char - ent.sent.start_char
-                end = ent.end_char - ent.sent.start_char
+                start = ent.start_char
+                end = ent.end_char
                 iso_label = maj_vote
                 try:
                     text_label = self._inv_cts[iso_label]
                 except KeyError:
                     text_label = ""
 
-                task = {"text" : ent.sent.text,
+                task = {"text" : ent.text,
                         "label" : text_label, # human-readable country name
                         "word" : ent.text,
                         "spans" : [{
@@ -980,7 +985,7 @@ class Geoparser:
             doc = nlp(doc)
         proced = self.infer_country(doc)
         if not proced:
-            pass
+            return []
             # logging!
             #print("Nothing came back from infer_country...")
 
@@ -1029,8 +1034,7 @@ class Geoparser:
     def batch_geoparse(self, text_list):
         """
         Batch geoparsing function. Take in a list of text documents and return a list of lists
-        of the geoparsed documents. The speed improvements come from using spaCy's `nlp.pipe` and by multithreading
-        calls to `geoparse`.
+        of the geoparsed documents. The speed improvements come exclusively from using spaCy's `nlp.pipe`.
 
         Parameters
         ----------
@@ -1039,17 +1043,16 @@ class Geoparser:
 
         Returns
         -------
-        proced : list of list of dicts
-            The list is the same length as the input list of documents. Each element is a list of geolocated entities.
+        processed : list of list of dictionaries.
+            The list is the same length as the input list of documents. Each element is a list of dicts, one for
+            each geolocated entity.
         """
         if not self.threads:
-            print("Error: can't run batch_geoparse without setting threads = True.")
-            return
-        nlped_docs = nlp.pipe(text_list, multiprocessing.cpu_count())
-        #pool = ThreadPool(self.n_threads)
-        #processed = pool.map(self.geoparse, nlped_docs)
-        #pool.close()
-        #pool.join()
-        processed = [self.geoparse(i) for i in nlped_docs]
+            print("batch_geoparsed should be used with threaded searches. Please set `threads=True` when initializing the geoparser.")
+        nlped_docs = list(nlp.pipe(text_list, as_tuples=False, n_threads=multiprocessing.cpu_count()))
+        processed = []
+        for i in tqdm(nlped_docs, disable=not self.progress):
+            p = self.geoparse(i)
+            processed.append(p)
         return processed
 

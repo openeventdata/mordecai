@@ -1,13 +1,9 @@
-import os
-import sys
-import glob
-import json
 from elasticsearch_dsl import Q
+import numpy as np
 from ..utilities import structure_results
-#from ..geoparse import Geoparser
 
 import spacy
-nlp = spacy.load('en_core_web_lg')
+nlp = spacy.load('en_core_web_lg', disable=['parser', 'tagger'])
 
 def test_fm_methods_exist(geo):
     assert hasattr(geo, "_feature_most_alternative")
@@ -30,7 +26,7 @@ def test_vector_picking(geo):
     vp = geo._feature_word_embedding(entity)
     assert vp['country_1'] == "IRQ"
 
-def test_cts(geo):
+def test_cts2(geo):
     out = geo._inv_cts['DEU']
     assert out == "Germany"
 
@@ -47,7 +43,7 @@ def test_most_population(geo):
 
 def test_is_country(geo):
     a = geo.is_country("Senegal")
-    assert a == True
+    assert a
 
 def test_make_country_features(geo):
     doc = nlp("EULEX is based in Prishtina, Kosovo.")
@@ -133,6 +129,7 @@ def test_query(geo):
 def test_missing_feature_code(geo):
     doc = "Congress and in the legislatures of Alabama, California, Florida, and Michigan."
     locs = geo.geoparse(doc)
+    assert locs
 
 def test_aleppo_geneva(geo):
     locs = geo.geoparse("Government forces attacked the cities in Aleppo Governorate, while rebel leaders met in Geneva.")
@@ -144,22 +141,31 @@ def test_issue_40(geo):
     locs = geo.geoparse(doc)
     assert len(locs) > 2
 
-def test_issue_40(geo_thread):
-    doc = "In early 1938, the Prime Minister cut grants-in-aid to the provinces, effectively killing the relief project scheme. Premier Thomas Dufferin Pattullo closed the projects in April, claiming that British Columbia could not shoulder the burden alone. Unemployed men again flocked to Vancouver to protest government insensitivity and intransigence to their plight. The RCPU organized demonstrations and tin-canning (organized begging) in the city. Under the guidance of twenty-six-year-old Steve Brodie, the leader of the Youth Division who had cut his activist teeth during the 1935 relief camp strike, protesters occupied Hotel Georgia, the Vancouver Art Gallery (then located at 1145 West Georgia Street), and the main post office (now the Sinclair Centre)."
-    locs = geo_thread.geoparse(doc)
-    assert len(locs) > 2
+#def test_issue_40_2(geo):
+#    doc_list = ["Government forces attacked the cities in Aleppo Governorate, while rebel leaders met in Geneva.",
+#                "EULEX is based in Prishtina, Kosovo.",
+#                "Clientelism may depend on brokers."]
+#    locs = geo.batch_geoparse(doc_list)
+#    assert len(locs) == 3
+#    assert locs[0][0]['geo']['geonameid'] == '170063'
+#    assert locs[0][1]['country_predicted'] == 'CHE'
+#    assert locs[1][0]['geo']['feature_code'] == 'PPLC'
+#    assert locs[1][1]['geo']['country_code3'] == 'XKX'
+#    assert locs[2] == []
 
-def test_issue_40_2(geo):
+
+def test_issue_40_2_thread(geo_thread):
     doc_list = ["Government forces attacked the cities in Aleppo Governorate, while rebel leaders met in Geneva.",
                 "EULEX is based in Prishtina, Kosovo.",
                 "Clientelism may depend on brokers."]
-    locs = geo.batch_geoparse(doc_list)
+    locs = geo_thread.batch_geoparse(doc_list)
     assert len(locs) == 3
     assert locs[0][0]['geo']['geonameid'] == '170063'
     assert locs[0][1]['country_predicted'] == 'CHE'
     assert locs[1][0]['geo']['feature_code'] == 'PPLC'
     assert locs[1][1]['geo']['country_code3'] == 'XKX'
     assert locs[2] == []
+
 
 def test_issue_45(geo):
     text = """Santa Cruz is a first class municipality in
@@ -213,4 +219,40 @@ def test_ohio(geo):
     result = geo.conn.query(r).execute()
     output = structure_results(result)
     assert output['hits']['hits'][0]['asciiname'] == "Ohio"
+
+def test_readme_example(geo):
+    output = geo.geoparse("I traveled from Oxford to Ottawa.")
+    correct = [{'country_conf': np.float32(0.96474487),
+          'country_predicted': 'GBR',
+          'geo': {'admin1': 'England',
+           'country_code3': 'GBR',
+           'feature_class': 'P',
+           'feature_code': 'PPLA2',
+           'geonameid': '2640729',
+           'lat': '51.75222',
+           'lon': '-1.25596',
+           'place_name': 'Oxford'},
+          'spans': [{'end': 22, 'start': 16}],
+          'word': 'Oxford'},
+         {'country_conf': np.float32(0.83302397),
+          'country_predicted': 'CAN',
+          'geo': {'admin1': 'Ontario',
+           'country_code3': 'CAN',
+           'feature_class': 'P',
+           'feature_code': 'PPLC',
+           'geonameid': '6094817',
+           'lat': '45.41117',
+           'lon': '-75.69812',
+           'place_name': 'Ottawa'},
+          'spans': [{'end': 32, 'start': 26}],
+          'word': 'Ottawa'}]
+    assert output == correct
+
+def test_issue_53(geo):
+    # the spans issue
+    output = geo.geoparse("I traveled from Oxford to Ottawa.")
+    assert output[0]['spans'][0]['start'] == 16
+    assert output[0]['spans'][0]['end'] == 22
+    assert output[1]['spans'][0]['start'] == 26
+    assert output[1]['spans'][0]['end'] == 32
 

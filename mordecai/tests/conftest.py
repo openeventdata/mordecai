@@ -7,4 +7,4 @@ def geo():
 
 @pytest.fixture(scope='session', autouse=True)
 def geo_thread():
-    return Geoparser(n_threads = 4)
+    return Geoparser(threads=True)
