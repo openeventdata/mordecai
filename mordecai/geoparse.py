@@ -10,6 +10,7 @@ from multiprocessing.pool import ThreadPool
 from elasticsearch.exceptions import ConnectionTimeout, ConnectionError
 import multiprocessing
 from tqdm import tqdm
+import warnings
 
 try:
     from functools import lru_cache
@@ -30,8 +31,8 @@ Install with this command: `python -m spacy download en_core_web_lg`.""")
 
 class Geoparser:
     def __init__(self, es_ip="localhost", es_port="9200", verbose=False,
-                 country_threshold=0.6, threads=False, progress=True,
-                 mod_date="2018-06-05"):
+                 country_threshold=0.6, threads=True, progress=True,
+                 mod_date="2018-06-05", **kwargs):
         DATA_PATH = pkg_resources.resource_filename('mordecai', 'data/')
         MODELS_PATH = pkg_resources.resource_filename('mordecai', 'models/')
         self._cts = utilities.country_list_maker()
@@ -55,6 +56,8 @@ class Geoparser:
         self.verbose = verbose  # return the full dictionary or just the good parts?
         self.progress = progress  # display progress bars?
         self.threads = threads
+        if 'n_threads' in kwargs.keys():
+            warnings.warn("n_threads is deprecated. Use threads=True instead.", DeprecationWarning)
         try:
             # https://www.reddit.com/r/Python/comments/3a2erd/exception_catch_not_catching_everything/
             # with nostderr():

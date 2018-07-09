@@ -3,7 +3,7 @@ import pytest
 
 @pytest.fixture(scope='session', autouse=True)
 def geo():
-    return Geoparser()
+    return Geoparser(threads=False)
 
 @pytest.fixture(scope='session', autouse=True)
 def geo_thread():

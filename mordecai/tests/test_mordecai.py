@@ -11,14 +11,30 @@ def test_fm_methods_exist(geo):
     assert hasattr(geo, "_feature_word_embedding")
     assert hasattr(geo, "clean_entity")
 
+def test_fm_methods_exist_thread(geo_thread):
+    assert hasattr(geo_thread, "_feature_most_alternative")
+    assert hasattr(geo_thread, "_feature_first_back")
+    assert hasattr(geo_thread, "_feature_word_embedding")
+    assert hasattr(geo_thread, "clean_entity")
+
 def test_cts(geo):
     assert "Kosovo" in geo._cts.keys()
     assert "Kosovo" not in geo._cts.values()
     assert "AFG" in geo._cts.values()
 
+def test_cts_thread(geo_thread):
+    assert "Kosovo" in geo_thread._cts.keys()
+    assert "Kosovo" not in geo_thread._cts.values()
+    assert "AFG" in geo_thread._cts.values()
+
 def test_country_mentions(geo):
     doc = nlp("Puerto Cabello is a port city in Venezuela")
     f = geo._feature_country_mentions(doc)
+    assert f == ('VEN', 1, '', 0)
+
+def test_country_mentions_thread(geo_thread):
+    doc = nlp("Puerto Cabello is a port city in Venezuela")
+    f = geo_thread._feature_country_mentions(doc)
     assert f == ('VEN', 1, '', 0)
 
 def test_vector_picking(geo):
@@ -26,8 +42,17 @@ def test_vector_picking(geo):
     vp = geo._feature_word_embedding(entity)
     assert vp['country_1'] == "IRQ"
 
+def test_vector_picking_thread(geo_thread):
+    entity = nlp("Mosul")
+    vp = geo_thread._feature_word_embedding(entity)
+    assert vp['country_1'] == "IRQ"
+
 def test_cts2(geo):
     out = geo._inv_cts['DEU']
+    assert out == "Germany"
+
+def test_cts2_thread(geo_thread):
+    out = geo_thread._inv_cts['DEU']
     assert out == "Germany"
 
 def test_most_population(geo):
@@ -37,6 +62,17 @@ def test_most_population(geo):
     a = geo._feature_most_population(res_a)
     b = geo._feature_most_population(res_b)
     c = geo._feature_most_population(res_c)
+    assert a == "DEU"
+    assert b == "USA"
+    assert c == "LBY"
+
+def test_most_population_thread(geo_thread):
+    res_a = geo_thread.query_geonames("Berlin")
+    res_b = geo_thread.query_geonames("Oklahoma City")
+    res_c = geo_thread.query_geonames("Tripoli")
+    a = geo_thread._feature_most_population(res_a)
+    b = geo_thread._feature_most_population(res_b)
+    c = geo_thread._feature_most_population(res_c)
     assert a == "DEU"
     assert b == "USA"
     assert c == "LBY"
@@ -101,9 +137,21 @@ def test_two_countries(geo):
     assert loc[0]['country_predicted'] == "SYR"
     assert loc[1]['country_predicted'] == "CHE"
 
+def test_two_countries_thread(geo_thread):
+    doc = "There's fighting in Aleppo and talking in Geneva."
+    loc = geo_thread.geoparse(doc)
+    assert loc[0]['country_predicted'] == "SYR"
+    assert loc[1]['country_predicted'] == "CHE"
+
 def test_US_city(geo):
     doc = "There's fighting in Norman, Oklahoma."
     locs = geo.geoparse(doc)
+    assert locs[0]['geo']['geonameid'] == '4543762'
+    assert locs[1]['geo']['geonameid'] == '4544379'
+
+def test_US_city_thread(geo_thread):
+    doc = "There's fighting in Norman, Oklahoma."
+    locs = geo_thread.geoparse(doc)
     assert locs[0]['geo']['geonameid'] == '4543762'
     assert locs[1]['geo']['geonameid'] == '4544379'
 
@@ -112,9 +160,19 @@ def test_admin1(geo):
     locs = geo.geoparse(doc)
     assert locs[0]['geo']['admin1'] == 'Oklahoma'
 
+def test_admin1_thread(geo_thread):
+    doc = "There's fighting in Norman, Oklahoma."
+    locs = geo_thread.geoparse(doc)
+    assert locs[0]['geo']['admin1'] == 'Oklahoma'
+
 def test_weird_loc(geo):
     doc = "There's fighting in Ajnsdgjb city."
     loc = geo.geoparse(doc)
+    assert loc[0]['country_conf'] < 0.001
+
+def test_weird_loc_thread(geo_thread):
+    doc = "There's fighting in Ajnsdgjb city."
+    loc = geo_thread.geoparse(doc)
     assert loc[0]['country_conf'] < 0.001
 
 def test_no_loc(geo):
@@ -122,8 +180,17 @@ def test_no_loc(geo):
     loc = geo.geoparse(doc)
     assert len(loc) == 0
 
+def test_no_loc_thread(geo_thread):
+    doc = "The dog ran through the park."
+    loc = geo_thread.geoparse(doc)
+    assert len(loc) == 0
+
 def test_query(geo):
     results = geo.query_geonames("Berlin")
+    assert results['hits']['hits'][15]['country_code3']
+
+def test_query_thread(geo_thread):
+    results = geo_thread.query_geonames("Berlin")
     assert results['hits']['hits'][15]['country_code3']
 
 def test_missing_feature_code(geo):
@@ -131,8 +198,18 @@ def test_missing_feature_code(geo):
     locs = geo.geoparse(doc)
     assert locs
 
+def test_missing_feature_code_thread(geo_thread):
+    doc = "Congress and in the legislatures of Alabama, California, Florida, and Michigan."
+    locs = geo_thread.geoparse(doc)
+    assert locs
+
 def test_aleppo_geneva(geo):
     locs = geo.geoparse("Government forces attacked the cities in Aleppo Governorate, while rebel leaders met in Geneva.")
+    assert locs[0]['geo']['country_code3'] == 'SYR'
+    assert locs[1]['geo']['country_code3'] == 'CHE'
+
+def test_aleppo_geneva_thread(geo_thread):
+    locs = geo_thread.geoparse("Government forces attacked the cities in Aleppo Governorate, while rebel leaders met in Geneva.")
     assert locs[0]['geo']['country_code3'] == 'SYR'
     assert locs[1]['geo']['country_code3'] == 'CHE'
 
@@ -140,19 +217,6 @@ def test_issue_40(geo):
     doc = "In early 1938, the Prime Minister cut grants-in-aid to the provinces, effectively killing the relief project scheme. Premier Thomas Dufferin Pattullo closed the projects in April, claiming that British Columbia could not shoulder the burden alone. Unemployed men again flocked to Vancouver to protest government insensitivity and intransigence to their plight. The RCPU organized demonstrations and tin-canning (organized begging) in the city. Under the guidance of twenty-six-year-old Steve Brodie, the leader of the Youth Division who had cut his activist teeth during the 1935 relief camp strike, protesters occupied Hotel Georgia, the Vancouver Art Gallery (then located at 1145 West Georgia Street), and the main post office (now the Sinclair Centre)."
     locs = geo.geoparse(doc)
     assert len(locs) > 2
-
-#def test_issue_40_2(geo):
-#    doc_list = ["Government forces attacked the cities in Aleppo Governorate, while rebel leaders met in Geneva.",
-#                "EULEX is based in Prishtina, Kosovo.",
-#                "Clientelism may depend on brokers."]
-#    locs = geo.batch_geoparse(doc_list)
-#    assert len(locs) == 3
-#    assert locs[0][0]['geo']['geonameid'] == '170063'
-#    assert locs[0][1]['country_predicted'] == 'CHE'
-#    assert locs[1][0]['geo']['feature_code'] == 'PPLC'
-#    assert locs[1][1]['geo']['country_code3'] == 'XKX'
-#    assert locs[2] == []
-
 
 def test_issue_40_2_thread(geo_thread):
     doc_list = ["Government forces attacked the cities in Aleppo Governorate, while rebel leaders met in Geneva.",
@@ -222,6 +286,34 @@ def test_ohio(geo):
 
 def test_readme_example(geo):
     output = geo.geoparse("I traveled from Oxford to Ottawa.")
+    correct = [{'country_conf': np.float32(0.96474487),
+          'country_predicted': 'GBR',
+          'geo': {'admin1': 'England',
+           'country_code3': 'GBR',
+           'feature_class': 'P',
+           'feature_code': 'PPLA2',
+           'geonameid': '2640729',
+           'lat': '51.75222',
+           'lon': '-1.25596',
+           'place_name': 'Oxford'},
+          'spans': [{'end': 22, 'start': 16}],
+          'word': 'Oxford'},
+         {'country_conf': np.float32(0.83302397),
+          'country_predicted': 'CAN',
+          'geo': {'admin1': 'Ontario',
+           'country_code3': 'CAN',
+           'feature_class': 'P',
+           'feature_code': 'PPLC',
+           'geonameid': '6094817',
+           'lat': '45.41117',
+           'lon': '-75.69812',
+           'place_name': 'Ottawa'},
+          'spans': [{'end': 32, 'start': 26}],
+          'word': 'Ottawa'}]
+    assert output == correct
+
+def test_readme_example_thread(geo_thread):
+    output = geo_thread.geoparse("I traveled from Oxford to Ottawa.")
     correct = [{'country_conf': np.float32(0.96474487),
           'country_predicted': 'GBR',
           'geo': {'admin1': 'England',
