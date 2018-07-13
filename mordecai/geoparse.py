@@ -1,7 +1,5 @@
 import keras
 import pandas as pd
-from elasticsearch_dsl.query import MultiMatch
-from elasticsearch_dsl import Search, Q
 import numpy as np
 from collections import Counter
 import editdistance
@@ -9,7 +7,10 @@ import pkg_resources
 import spacy
 from . import utilities
 from multiprocessing.pool import ThreadPool
-from elasticsearch.exceptions import ConnectionTimeout
+from elasticsearch.exceptions import ConnectionTimeout, ConnectionError
+import multiprocessing
+from tqdm import tqdm
+import warnings
 
 try:
     from functools import lru_cache
@@ -22,12 +23,16 @@ try:
 except NameError:
     try:
         nlp = spacy.load('en_core_web_lg', disable=['parser', 'tagger'])
+        #nlp = spacy.load('en_core_web_lg', disable=['tagger'])
     except OSError:
-        print("ERROR: No spaCy NLP model installed. Install with this command: `python -m spacy download en_core_web_lg`.")
+        print("""ERROR: No spaCy NLP model installed.
+Install with this command: `python -m spacy download en_core_web_lg`.""")
+
 
 class Geoparser:
-    def __init__(self, es_ip="localhost", es_port="9200", verbose = False,
-                country_threshold = 0.6, n_threads = 4, mod_date = "2018-06-05"):
+    def __init__(self, es_ip="localhost", es_port="9200", verbose=False,
+                 country_threshold=0.6, threads=True, progress=True,
+                 mod_date="2018-06-05", **kwargs):
         DATA_PATH = pkg_resources.resource_filename('mordecai', 'data/')
         MODELS_PATH = pkg_resources.resource_filename('mordecai', 'models/')
         self._cts = utilities.country_list_maker()
@@ -43,25 +48,32 @@ class Geoparser:
         self.country_model = keras.models.load_model(MODELS_PATH + "country_model.h5")
         self.rank_model = keras.models.load_model(MODELS_PATH + "rank_model.h5")
         self._skip_list = utilities.make_skip_list(self._cts)
-        self.training_setting = False # make this true if you want training formatted
+        self.training_setting = False  # make this true if you want training formatted
         # if the best country guess is below the country threshold, don't return anything at all
         self.country_threshold = country_threshold
-        feature_codes = pd.read_csv(DATA_PATH + "feature_codes.txt", sep="\t", header = None)
-        self._code_to_text = dict(zip(feature_codes[1], feature_codes[3])) # human readable geonames IDs
-        self.verbose = verbose # return the full dictionary or just the good parts?
-        self.n_threads = n_threads
+        feature_codes = pd.read_csv(DATA_PATH + "feature_codes.txt", sep="\t", header=None)
+        self._code_to_text = dict(zip(feature_codes[1], feature_codes[3]))  # human readable geonames IDs
+        self.verbose = verbose  # return the full dictionary or just the good parts?
+        self.progress = progress  # display progress bars?
+        self.threads = threads
+        if 'n_threads' in kwargs.keys():
+            warnings.warn("n_threads is deprecated. Use threads=True instead.", DeprecationWarning)
         try:
             # https://www.reddit.com/r/Python/comments/3a2erd/exception_catch_not_catching_everything/
-            #with nostderr():
+            # with nostderr():
             self.conn.count()
         except:
-            raise ConnectionError("Could not establish contact with Elasticsearch at {0} on port {1}. Are you sure it's running? \n".format(es_ip, es_port),
-                 "Mordecai needs access to the Geonames/Elasticsearch gazetteer to function.",
-                 "See https://github.com/openeventdata/mordecai#installation-and-requirements",
-                 "for instructions on setting up Geonames/Elasticsearch")
+            raise ConnectionError("""Could not establish contact with Elasticsearch at {0} on port {1}.
+Are you sure it's running?
+Mordecai needs access to the Geonames/Elasticsearch gazetteer to function.
+See https://github.com/openeventdata/mordecai#installation-and-requirements
+for instructions on setting up Geonames/Elasticsearch""".format(es_ip, es_port))
         es_date = utilities.check_geonames_date(self.conn)
         if es_date != mod_date:
-            print("You may be using an outdated Geonames index. Your index is from {0}, while the most recent is {1}. Please see https://github.com/openeventdata/mordecai/ for instructions on updating.".format(es_date, mod_date))
+            print("""You may be using an outdated Geonames index.
+Your index is from {0}, while the most recent is {1}. Please see
+https://github.com/openeventdata/mordecai/ for instructions on updating.""".format(es_date, mod_date))
+
 
     def _feature_country_mentions(self, doc):
         """
@@ -77,7 +89,6 @@ class Geoparser:
         countries: dict
             the top two countries (ISO code) and their frequency of mentions.
         """
-
         c_list = []
         for i in doc.ents:
             try:
@@ -85,7 +96,6 @@ class Geoparser:
                 c_list.append(country)
             except KeyError:
                 pass
-
         count = Counter(c_list).most_common()
         try:
             top, top_count = count[0]
@@ -131,12 +141,13 @@ class Geoparser:
 
         keep_positions = np.asarray(keep_positions)
         try:
-            new_ent = ent.doc[keep_positions.min():keep_positions.max()+1]
+            new_ent = ent.doc[keep_positions.min():keep_positions.max() + 1]
             # can't set directly
             #new_ent.label_.__set__(ent.label_)
         except ValueError:
             new_ent = ent
         return new_ent
+
 
     def _feature_most_common(self, results):
         """
@@ -162,7 +173,7 @@ class Geoparser:
             return ""
 
 
-    def _feature_most_alternative(self, results, full_results = False):
+    def _feature_most_alternative(self, results, full_results=False):
         """
         Find the placename with the most alternative names and return its country.
         More alternative names are a rough measure of importance.
@@ -181,7 +192,7 @@ class Geoparser:
         try:
             alt_names = [len(i['alternativenames']) for i in results['hits']['hits']]
             most_alt = results['hits']['hits'][np.array(alt_names).argmax()]
-            if full_results == True:
+            if full_results:
                 return most_alt
             else:
                 return most_alt['country_code3']
@@ -238,7 +249,6 @@ class Geoparser:
                 "confid_b" : 0,
                 "country_2" : ""}
         ranks = simils.argsort()[::-1]
-        best_index = ranks[0]
         confid = simils.max()
         confid2 = simils[ranks[0]] - simils[ranks[1]]
         if confid == 0 or confid2 == 0:
@@ -249,6 +259,7 @@ class Geoparser:
                 "confid_b" : confid2,
                 "country_2" : self._cts[str(self._ct_nlp[ranks[1]])]}
         return country_picking
+
 
     def _feature_first_back(self, results):
         """
@@ -273,9 +284,9 @@ class Geoparser:
             second_back = results['hits']['hits'][1]['country_code3']
         except (TypeError, IndexError):
             second_back = ""
-
         top = (first_back, second_back)
         return top
+
 
     def is_country(self, text):
         """Check if a piece of text is in the list of countries"""
@@ -284,6 +295,7 @@ class Geoparser:
             return True
         else:
             return False
+
 
     @lru_cache(maxsize=250)
     def query_geonames(self, placename):
@@ -307,18 +319,13 @@ class Geoparser:
             q = {"multi_match": {"query": placename,
                                  "fields": ['name', 'asciiname', 'alternativenames'],
                                 "type" : "phrase"}}
-            r = Q("match", feature_code='PCLI')
-            res = self.conn.query(q).query(r)[0:5].execute()  # always 5
-            #self.country_exact = True
-
+            res = self.conn.filter("term", feature_code='PCLI').query(q)[0:5].execute()  # always 5
         else:
             # second, try for an exact phrase match
             q = {"multi_match": {"query": placename,
                                  "fields": ['name^5', 'asciiname^5', 'alternativenames'],
                                 "type" : "phrase"}}
-
             res = self.conn.query(q)[0:50].execute()
-
             # if no results, use some fuzziness, but still require all terms to be present.
             # Fuzzy is not allowed in "phrase" searches.
             if res.hits.total == 0:
@@ -326,14 +333,13 @@ class Geoparser:
                 q = {"multi_match": {"query": placename,
                                      "fields": ['name', 'asciiname', 'alternativenames'],
                                          "fuzziness" : 1,
-                                         "operator":   "and"},
-                        }
-                #self.fuzzy = True  # idea was to preserve this info as a feature, but not using state like this
+                                         "operator":   "and"
+                                     }
+                    }
                 res = self.conn.query(q)[0:50].execute()
-
-
         es_result = utilities.structure_results(res)
         return es_result
+
 
     @lru_cache(maxsize=250)
     def query_geonames_country(self, placename, country):
@@ -343,24 +349,46 @@ class Geoparser:
         # first, try for an exact phrase match
         q = {"multi_match": {"query": placename,
                              "fields": ['name^5', 'asciiname^5', 'alternativenames'],
-                            "type" : "phrase"}}
-        r = Q("match", country_code3=country)
-        res = self.conn.query(q).query(r)[0:50].execute()
+                            "type": "phrase"}}
+        res = self.conn.filter("term", country_code3=country).query(q)[0:50].execute()
 
         # if no results, use some fuzziness, but still require all terms to be present.
         # Fuzzy is not allowed in "phrase" searches.
         if res.hits.total == 0:
-                # tried wrapping this in a {"constant_score" : {"query": ... but made it worse
+            # tried wrapping this in a {"constant_score" : {"query": ... but made it worse
             q = {"multi_match": {"query": placename,
                                  "fields": ['name', 'asciiname', 'alternativenames'],
-                                     "fuzziness" : 1,
-                                     "operator":   "and"},
-                }
-            r = Q("match", country_code3=country)
-            res = self.conn.query(q).query(r)[0:50].execute()
-
+                                     "fuzziness": 1,
+                                     "operator":   "and"}}
+            res = self.conn.filter("term", country_code3=country).query(q)[0:50].execute()
         out = utilities.structure_results(res)
         return out
+
+
+    # The following three lookup functions are used for the threaded queries.
+    def proc_lookup(self, loc):
+        try:
+            loc = self.query_geonames(loc['word'])
+        except ConnectionTimeout:
+            loc = ""
+        return loc
+
+
+    def proc_lookup_country(self, loc):
+        if loc['country_conf'] >= self.country_threshold:
+            loc = self.query_geonames_country(loc['word'], loc['country_predicted'])
+            return loc
+        else:
+            return ""
+
+
+    def simple_lookup(self, word):
+        try:
+            loc = self.query_geonames(word)
+        except ConnectionTimeout:
+            loc = ""
+        return loc
+
 
     def _feature_location_type_mention(self, ent):
         """
@@ -389,13 +417,14 @@ class Geoparser:
         AIRPORT_list = ["airport"]
         TERRAIN_list = ["mountain", "mountains", "stream", "river"]
         FOREST_list = ["forest"]
-
+        # TODO: incorporate positions, especially now that we don't split by
+        # sentence
         feature_positions = []
         feature_class = feature_code = ""
 
-        interest_words = ent.doc[ent.end-1 : ent.end + 1] # last word or next word following
+        interest_words = ent.doc[ent.end - 1 : ent.end + 1]  # last word or next word following
 
-        for word in interest_words: #ent.sent:
+        for word in interest_words:
             if ent.text in self._just_cts.keys():
                 feature_class = "A"
                 feature_code = "PCLI"
@@ -417,12 +446,10 @@ class Geoparser:
             elif word.text.lower() in A_other:
                 feature_class = "A"
                 feature_code = ""
-
         return (feature_class, feature_code)
 
 
-
-    def make_country_features(self, doc, require_maj = False):
+    def make_country_features(self, doc, require_maj=False):
         """
         Create features for the country picking model. Function where all the individual
         feature maker functions are called and aggregated. (Formerly "process_text")
@@ -449,22 +476,41 @@ class Geoparser:
         # get explicit counts of country names
         ct_mention, ctm_count1, ct_mention2, ctm_count2 = self._feature_country_mentions(doc)
 
-        # now iterate through the entities, skipping irrelevant ones and countries
+        #  pull out the place names, skipping empty ones, countries, and known
+        #  junk from the skip list (like "Atlanic Ocean"
+        ents = []
         for ent in doc.ents:
             if not ent.text.strip():
                 continue
-            if ent.label_ not in ["GPE","LOC","FAC"]:
+            if ent.label_ not in ["GPE", "LOC", "FAC"]:
                 continue
             # don't include country names (make a parameter)
             if ent.text.strip() in self._skip_list:
                 continue
+            ents.append(ent)
+        if not ents:
+            return []
+        # Look them up in geonames, either sequentially if no threading, or
+        # in parallel if threads.
+        if self.threads:
+            pool = ThreadPool(len(ents))
+            ent_text = [i.text for i in ents]
+            ent_results = pool.map(self.simple_lookup, ent_text)
+            pool.close()
+            pool.join()
+        else:
+            ent_results = []
+            for ent in ents:
+                try:
+                    result = self.query_geonames(ent.text)
+                except ConnectionTimeout:
+                    result = ""
+                ent_results.append(result)
 
-            ## just for training purposes
-            #if ent.text.strip() in self._just_cts.keys():
-            #    continue
-
+        for n, ent in enumerate(ents):
+            result = ent_results[n]
             #skip_list.add(ent.text.strip())
-            ent_label = ent.label_ # destroyed by trimming
+            ent_label = ent.label_  # destroyed by trimming
             ent = self.clean_entity(ent)
 
             # vector for just the solo word
@@ -479,15 +525,9 @@ class Geoparser:
 
             # look for explicit mentions of feature names
             class_mention, code_mention = self._feature_location_type_mention(ent)
-
-            ##### ES-based features
-            try:
-                result = self.query_geonames(ent.text)
-            except ConnectionTimeout:
-                result = ""
-
             # build results-based features
             most_alt = self._feature_most_alternative(result)
+            # TODO check if most_common feature really isn't that useful
             most_common = self._feature_most_common(result)
             most_pop = self._feature_most_population(result)
             first_back, second_back = self._feature_first_back(result)
@@ -502,30 +542,25 @@ class Geoparser:
                 print("Problem taking majority vote: ", ent, e)
                 maj_vote = ""
 
-
             if not maj_vote:
                 maj_vote = ""
-
             # We only want all this junk for the labeling task. We just want to straight to features
             # and the model when in production.
-
-
             try:
-                start = ent.start_char - ent.sent.start_char
-                end = ent.end_char - ent.sent.start_char
+                start = ent.start_char
+                end = ent.end_char
                 iso_label = maj_vote
                 try:
                     text_label = self._inv_cts[iso_label]
                 except KeyError:
                     text_label = ""
-
-                task = {"text" : ent.sent.text,
-                        "label" : text_label, # human-readable country name
+                task = {"text" : ent.text,
+                        "label" : text_label,  # human-readable country name
                         "word" : ent.text,
                         "spans" : [{
                             "start" : start,
                             "end" : end,
-                            } # make sure to rename for Prodigy
+                            }  # make sure to rename for Prodigy
                                 ],
                         "features" : {
                                 "maj_vote" : iso_label,
@@ -539,22 +574,23 @@ class Geoparser:
                                 "ct_mention2" : ct_mention2,
                                 "ctm_count2" : ctm_count2,
                                 "wv_confid" : wv_confid,
-                                "class_mention" : class_mention, # inferred geonames class from mentions
+                                "class_mention" : class_mention,  # inferred geonames class from mentions
                                 "code_mention" : code_mention,
                                 #"places_vec" : places_vec,
                                 #"doc_vec_sent" : doc_vec_sent
-                                } }
+                                }
+                        }
                 task_list.append(task)
             except Exception as e:
                 print(ent.text,)
                 print(e)
-        return task_list # rename this var
-
+        return task_list  # rename this var
     # Two modules that call `make_country_features`:
     #  1. write out with majority vote for training
     #  2. turn into features, run model, return countries
     #  A third, standalone function will convert the labeled JSON from Prodigy into
     #    features for updating the model.
+
 
     def make_country_matrix(self, loc):
         """
@@ -572,7 +608,7 @@ class Geoparser:
 
         top = loc['features']['ct_mention']
         top_count = loc['features']['ctm_count1']
-        two =  loc['features']['ct_mention2']
+        two = loc['features']['ct_mention2']
         two_count = loc['features']['ctm_count2']
         word_vec = loc['features']['word_vec']
         first_back = loc['features']['first_back']
@@ -585,7 +621,7 @@ class Geoparser:
         X_mat = []
 
         for label in possible_labels:
-            inputs  = np.array([word_vec, first_back, most_alt, most_pop])
+            inputs = np.array([word_vec, first_back, most_alt, most_pop])
             x = inputs == label
             x = np.asarray((x * 2) - 1) # convert to -1, 1
 
@@ -593,9 +629,9 @@ class Geoparser:
             exists = inputs != ""
             exists = np.asarray((exists * 2) - 1)
 
-            counts = np.asarray([top_count, two_count]) # cludgy, should be up with "inputs"
+            counts = np.asarray([top_count, two_count])  # cludgy, should be up with "inputs"
             right = np.asarray([top, two]) == label
-            right = right*2 - 1
+            right = right * 2 - 1
             right[counts == 0] = 0
 
             # get correct values
@@ -766,7 +802,7 @@ class Geoparser:
                 good_code_mention = 0
             ### edit distance
             ed = editdistance.eval(search_name, entry['name'])
-            ed = ed # shrug
+            ed = ed  # shrug
             # maybe also get min edit distance to alternative names...
 
             features = [has_pop, pop, logp, adj_rank, len_alt, adj_alt,
@@ -786,7 +822,7 @@ class Geoparser:
         """
         # total score is just a sum of each row
         total_score = X.sum(axis=1).transpose()
-        total_score = np.squeeze(np.asarray(total_score)) # matrix to array
+        total_score = np.squeeze(np.asarray(total_score))  # matrix to array
         ranks = total_score.argsort()
         ranks = ranks[::-1]
         # sort the list of dicts according to ranks
@@ -794,7 +830,7 @@ class Geoparser:
         sorted_X = X[ranks]
         return (sorted_X, sorted_meta)
 
-    def format_for_prodigy(self, X, meta, placename, return_feature_subset = False):
+    def format_for_prodigy(self, X, meta, placename, return_feature_subset=False):
         """
         Given a feature matrix, geonames data, and the original query,
         construct a prodigy task.
@@ -844,9 +880,9 @@ class Geoparser:
             return all_tasks
 
 
-
-    def format_geonames(self, entry, searchterm = None):
-        """Pull out just the fields we want from a geonames entry
+    def format_geonames(self, entry, searchterm=None):
+        """
+        Pull out just the fields we want from a geonames entry
 
         To do:
         - switch to model picking
@@ -889,8 +925,6 @@ class Geoparser:
                    "feature_code" : ""}
             return new_res
 
-
-
     def clean_proced(self, proced):
         """Small helper function to delete the features from the final dictionary.
         These features are mostly interesting for debugging but won't be relevant for most users.
@@ -926,7 +960,7 @@ class Geoparser:
                 pass
         return proced
 
-    def geoparse(self, doc, verbose = False):
+    def geoparse(self, doc, verbose=False):
         """Main geoparsing function. Text to extracted, resolved entities.
 
         Parameters
@@ -946,15 +980,26 @@ class Geoparser:
             doc = nlp(doc)
         proced = self.infer_country(doc)
         if not proced:
-            pass
+            return []
             # logging!
             #print("Nothing came back from infer_country...")
-        for loc in proced:
-            if loc['country_conf'] >= self.country_threshold: # shrug
-                res = self.query_geonames_country(loc['word'], loc['country_predicted'])
-            elif loc['country_conf'] < self.country_threshold:
-                res = ""
+        if self.threads:
+            pool = ThreadPool(len(proced))
+            results = pool.map(self.proc_lookup_country, proced)
+            pool.close()
+            pool.join()
+        else:
+            results = []
+            for loc in proced:
                 # if the confidence is too low, don't use the country info
+                if loc['country_conf'] > self.country_threshold:
+                    res = self.query_geonames_country(loc['word'], loc['country_predicted'])
+                    results.append(res)
+                else:
+                    results.append("")
+
+        for n, loc in enumerate(proced):
+            res = results[n]
             try:
                 _ = res['hits']['hits']
                 # If there's no geonames result, what to do?
@@ -974,17 +1019,15 @@ class Geoparser:
             place_confidence = prediction.max()
             loc['geo'] = sorted_meta[prediction.argmax()]
             loc['place_confidence'] = place_confidence
-
         if not verbose:
             proced = self.clean_proced(proced)
-
         return proced
+
 
     def batch_geoparse(self, text_list):
         """
         Batch geoparsing function. Take in a list of text documents and return a list of lists
-        of the geoparsed documents. The speed improvements come from using spaCy's `nlp.pipe` and by multithreading
-        calls to `geoparse`.
+        of the geoparsed documents. The speed improvements come exclusively from using spaCy's `nlp.pipe`.
 
         Parameters
         ----------
@@ -993,14 +1036,16 @@ class Geoparser:
 
         Returns
         -------
-        proced : list of list of dicts
-            The list is the same length as the input list of documents. Each element is a list of geolocated entities.
+        processed : list of list of dictionaries.
+            The list is the same length as the input list of documents. Each element is a list of dicts, one for
+            each geolocated entity.
         """
-
-        nlped_docs = nlp.pipe(text_list, n_threads = self.n_threads)
-        pool = ThreadPool(self.n_threads)
-        processed = pool.map(self.geoparse, nlped_docs)
-        pool.close()
-        pool.join()
+        if not self.threads:
+            print("batch_geoparsed should be used with threaded searches. Please set `threads=True` when initializing the geoparser.")
+        nlped_docs = list(nlp.pipe(text_list, as_tuples=False, n_threads=multiprocessing.cpu_count()))
+        processed = []
+        for i in tqdm(nlped_docs, disable=not self.progress):
+            p = self.geoparse(i)
+            processed.append(p)
         return processed
 

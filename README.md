@@ -128,8 +128,8 @@ When instantiating the `Geoparser()` module, the following options can be change
     wrong and will return weird results. Defaults to `0.6`. 
 - `verbose` : Return all the features used in the country picking model?
     Defaults to `False`. 
-- `n_threads`: used in the `batch_geoparse` method to set the number of threads
-    to run spaCy's `nlp.pipe` process and `geoparse` as a whole.
+- `threads`: whether to use threads to make parallel queries to the
+    Elasticsearch database. Defaults to `True`, which gives a ~6x speedup.
 
 `geoparse` is the primary endpoint and the only one that most users will need.
 Other methods are primarily internal to Mordecai but may be directly useful in
@@ -142,9 +142,8 @@ some cases:
 - methods with the `_feature` prefix are internal methods for
     calculating country picking features from text.
 
-`batch_geoparse` is an experimental endpoint that takes in a list of documents,
-batch processes them, and returns a corresponding list of lists. It currently
-around twice as fast as `geoparse`.
+`batch_geoparse` takes in a list of documents and uses spaCy's `nlp.pipe`
+method to process them more efficiently in the NLP step. 
 
 Advanced users on large machines can modify the `lru_cache` parameter from 250
 to 1000. This will use more memory but will increase parsing speed.
@@ -152,7 +151,7 @@ to 1000. This will use more memory but will increase parsing speed.
 Tests
 -----
 
-Mordecai includes a few unit tests. To run the tests, `cd` into the
+Mordecai includes unit tests. To run the tests, `cd` into the
 `mordecai` directory and run:
 
 ```
