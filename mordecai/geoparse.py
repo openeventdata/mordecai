@@ -1,4 +1,5 @@
 import keras
+import os
 import pandas as pd
 from elasticsearch_dsl.query import MultiMatch
 from elasticsearch_dsl import Search, Q
@@ -37,16 +38,16 @@ class Geoparser:
         self._cts.update(country_state_city)
         self._ct_nlp = utilities.country_list_nlp(self._cts)
         self._prebuilt_vec = [w.vector for w in self._ct_nlp]
-        self._both_codes = utilities.make_country_nationality_list(self._cts, DATA_PATH + "nat_df.csv")
-        self._admin1_dict = utilities.read_in_admin1(DATA_PATH + "admin1CodesASCII.json")
+        self._both_codes = utilities.make_country_nationality_list(self._cts, os.path.join(DATA_PATH, "nat_df.csv"))
+        self._admin1_dict = utilities.read_in_admin1(os.path.join(DATA_PATH, "admin1CodesASCII.json"))
         self.conn = utilities.setup_es(es_ip, es_port)
-        self.country_model = keras.models.load_model(MODELS_PATH + "country_model.h5")
-        self.rank_model = keras.models.load_model(MODELS_PATH + "rank_model.h5")
+        self.country_model = keras.models.load_model(os.path.join(MODELS_PATH, "country_model.h5"))
+        self.rank_model = keras.models.load_model(os.path.join(MODELS_PATH, "rank_model.h5"))
         self._skip_list = utilities.make_skip_list(self._cts)
         self.training_setting = False # make this true if you want training formatted
         # if the best country guess is below the country threshold, don't return anything at all
         self.country_threshold = country_threshold
-        feature_codes = pd.read_csv(DATA_PATH + "feature_codes.txt", sep="\t", header = None)
+        feature_codes = pd.read_csv(os.path.join(DATA_PATH, "feature_codes.txt"), sep="\t", header = None)
         self._code_to_text = dict(zip(feature_codes[1], feature_codes[3])) # human readable geonames IDs
         self.verbose = verbose # return the full dictionary or just the good parts?
         self.n_threads = n_threads
