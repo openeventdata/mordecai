@@ -230,7 +230,7 @@ def structure_results(res):
         out['hits']['hits'].append(i_out)
     return out
 
-def setup_es(es_ip, es_port):
+def setup_es(hosts, port, use_ssl, auth):
     """
     Setup an Elasticsearch connection
 
@@ -244,7 +244,15 @@ def setup_es(es_ip, es_port):
     -------
     es_conn: an elasticsearch_dsl Search connection object.
     """
-    CLIENT = Elasticsearch([{'host' : es_ip, 'port' : es_port}])
+    kwargs = dict(
+        hosts=hosts or ['localhost'],
+        port=port or 9200,
+        use_ssl=use_ssl,
+    )
+    if auth:
+        kwargs.update(http_auth=auth)
+
+    CLIENT = Elasticsearch(**kwargs)
     S = Search(using=CLIENT, index="geonames")
     return S
 
