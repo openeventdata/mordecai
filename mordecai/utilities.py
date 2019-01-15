@@ -230,16 +230,20 @@ def structure_results(res):
         out['hits']['hits'].append(i_out)
     return out
 
-def setup_es(hosts, port, use_ssl, auth):
+def setup_es(hosts, port, use_ssl=False, auth=None):
     """
     Setup an Elasticsearch connection
 
     Parameters
     ----------
-    es_ip: string
-            IP address for elasticsearch instance
-    es_port: string
-            Port for elasticsearch instance
+    hosts: list
+            Hostnames / IP addresses for elasticsearch cluster
+    port: string
+            Port for elasticsearch cluster
+    use_ssl: boolean
+            Whether to use SSL for the elasticsearch connection
+    auth: tuple
+            (username, password) to use with HTTP auth
     Returns
     -------
     es_conn: an elasticsearch_dsl Search connection object.
