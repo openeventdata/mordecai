@@ -30,9 +30,9 @@ Install with this command: `python -m spacy download en_core_web_lg`.""")
 
 
 class Geoparser:
-    def __init__(self, es_ip="localhost", es_port="9200", verbose=False,
-                 country_threshold=0.6, threads=True, progress=True,
-                 mod_date="2018-06-05", **kwargs):
+    def __init__(self, es_hosts=None, es_port=None, es_ssl=False, es_auth=None,
+                 verbose=False, country_threshold=0.6, threads=True,
+                 progress=True, mod_date="2018-06-05", **kwargs):
         DATA_PATH = pkg_resources.resource_filename('mordecai', 'data/')
         MODELS_PATH = pkg_resources.resource_filename('mordecai', 'models/')
         self._cts = utilities.country_list_maker()
@@ -44,7 +44,7 @@ class Geoparser:
         self._prebuilt_vec = [w.vector for w in self._ct_nlp]
         self._both_codes = utilities.make_country_nationality_list(self._cts, DATA_PATH + "nat_df.csv")
         self._admin1_dict = utilities.read_in_admin1(DATA_PATH + "admin1CodesASCII.json")
-        self.conn = utilities.setup_es(es_ip, es_port)
+        self.conn = utilities.setup_es(es_hosts, es_port, es_ssl, es_auth)
         self.country_model = keras.models.load_model(MODELS_PATH + "country_model.h5")
         self.rank_model = keras.models.load_model(MODELS_PATH + "rank_model.h5")
         self._skip_list = utilities.make_skip_list(self._cts)
@@ -67,7 +67,7 @@ class Geoparser:
 Are you sure it's running?
 Mordecai needs access to the Geonames/Elasticsearch gazetteer to function.
 See https://github.com/openeventdata/mordecai#installation-and-requirements
-for instructions on setting up Geonames/Elasticsearch""".format(es_ip, es_port))
+for instructions on setting up Geonames/Elasticsearch""".format(es_hosts, es_port))
         es_date = utilities.check_geonames_date(self.conn)
         if es_date != mod_date:
             print("""You may be using an outdated Geonames index.

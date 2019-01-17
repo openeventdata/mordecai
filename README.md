@@ -118,11 +118,15 @@ API and Configuration
 
 When instantiating the `Geoparser()` module, the following options can be changed:
 
-- `es_ip` : Where the Geonames Elasticsearch service is running. Defaults to
-    `localhost`, which is where it runs if you're using the default Docker
-    setup described above.
+- `es_hosts` : List of hosts where the Geonames Elasticsearch service is
+    running. Defaults to `['localhost']`, which is where it runs if you're using
+    the default Docker setup described above.
 - `es_port` : What port the Geonames Elasticsearch service is running on.
     Defaults to `9200`, which is where the Docker setup has it
+- `es_ssl` : Whether Elasticsearch requires an SSL connection.
+    Defaults to `False`.
+- `es_auth` : Optional HTTP auth parameters to use with ES.
+    If provided, it should be a two-tuple of `(user, password)`.
 - `country_confidence` : Set the country model confidence below which no
     geolocation will be returned. If it's really low, the model's probably
     wrong and will return weird results. Defaults to `0.6`. 
