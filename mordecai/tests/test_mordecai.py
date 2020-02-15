@@ -5,6 +5,18 @@ from ..utilities import structure_results
 import spacy
 nlp = spacy.load('en_core_web_lg', disable=['parser', 'tagger'])
 
+def test_issue_40_2_thread(geo_thread):
+    doc_list = ["Government forces attacked the cities in Aleppo Governorate, while rebel leaders met in Geneva.",
+                "EULEX is based in Prishtina, Kosovo.",
+                "Clientelism may depend on brokers."]
+    locs = geo_thread.batch_geoparse(doc_list)
+    assert len(locs) == 3
+    assert locs[0][0]['geo']['geonameid'] == '170063'
+    assert locs[0][1]['country_predicted'] == 'CHE'
+    assert locs[1][0]['geo']['feature_code'] == 'PPLC'
+    assert locs[1][1]['geo']['country_code3'] == 'XKX'
+    assert locs[2] == []
+
 def test_fm_methods_exist(geo):
     assert hasattr(geo, "_feature_most_alternative")
     assert hasattr(geo, "_feature_first_back")
@@ -218,18 +230,6 @@ def test_issue_40(geo):
     locs = geo.geoparse(doc)
     assert len(locs) > 2
 
-def test_issue_40_2_thread(geo_thread):
-    doc_list = ["Government forces attacked the cities in Aleppo Governorate, while rebel leaders met in Geneva.",
-                "EULEX is based in Prishtina, Kosovo.",
-                "Clientelism may depend on brokers."]
-    locs = geo_thread.batch_geoparse(doc_list)
-    assert len(locs) == 3
-    assert locs[0][0]['geo']['geonameid'] == '170063'
-    assert locs[0][1]['country_predicted'] == 'CHE'
-    assert locs[1][0]['geo']['feature_code'] == 'PPLC'
-    assert locs[1][1]['geo']['country_code3'] == 'XKX'
-    assert locs[2] == []
-
 
 def test_issue_45(geo):
     text = """Santa Cruz is a first class municipality in
@@ -348,3 +348,6 @@ def test_issue_53(geo):
     assert output[1]['spans'][0]['start'] == 26
     assert output[1]['spans'][0]['end'] == 32
 
+def test_issue_68_verbose(geo):
+    res = geo.geoparse("The ship entered Greenville from Tarboro", verbose=True)
+    assert res
