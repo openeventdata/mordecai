@@ -67,6 +67,16 @@ def test_cts2_thread(geo_thread):
     out = geo_thread._inv_cts['DEU']
     assert out == "Germany"
 
+def test_lookup_city(geo):
+    out = geo.lookup_city("Norman", "USA", "Oklahoma")
+    assert out['geo']['geonameid'] == '4543762'
+    assert out['reason'] == 'Single elasticsearch match for city.'
+
+def test_lookup_city2(geo):
+    out = geo.lookup_city("Rukn al-Din", "SYR")
+    assert out['geo']['geonameid'] == '7642446'
+    assert out['reason'] ==  'CAUTION: Single edit distance match.'
+
 def test_most_population(geo):
     res_a = geo.query_geonames("Berlin")
     res_b = geo.query_geonames("Oklahoma City")

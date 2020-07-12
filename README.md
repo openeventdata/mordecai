@@ -51,6 +51,17 @@ Installation and Requirements
 pip install mordecai
 ```
 
+**Note**: It's *strongly* recommended that you run Mordecai in a virtual
+environment. The libraries that Mordecai depends on are not always the most
+recent versions and using a virtual environment prevents libraries from being
+downgraded or running into other issues:
+
+```
+python -m venv mordecai-env
+source mordecai-env/bin/activate
+pip install mordecai
+```
+
 2. You should then download the required spaCy NLP model:
 
 ```
@@ -64,7 +75,7 @@ installed first).
 
 ```
 docker pull elasticsearch:5.5.2
-wget https://s3.amazonaws.com/ahalterman-geo/geonames_index.tar.gz --output-file=wget_log.txt
+wget https://andrewhalterman.com/files/geonames_index.tar.gz --output-file=wget_log.txt
 tar -xzf geonames_index.tar.gz
 docker run -d -p 127.0.0.1:9200:9200 -v $(pwd)/geonames_index/:/usr/share/elasticsearch/data elasticsearch:5.5.2
 ```
@@ -111,7 +122,7 @@ from it.
   placename. 
 
 The training data for the two models includes copyrighted text so cannot be
-shared freely, but get in touch with me if you're interested in it.
+shared freely.
 
 API and Configuration
 ---------------------
@@ -149,7 +160,7 @@ some cases:
 `batch_geoparse` takes in a list of documents and uses spaCy's `nlp.pipe`
 method to process them more efficiently in the NLP step. 
 
-Advanced users on large machines can modify the `lru_cache` parameter from 250
+Advanced users on large machines can increase the `lru_cache` parameter from 250
 to 1000. This will use more memory but will increase parsing speed.
 
 Tests
