@@ -17,8 +17,13 @@ def main(in_file: ("input CSV file"),
     print("Geocoding...")
     for i in tqdm(df.iterrows()):
         row = i[1]
+        if pd.isnull(row[adm1_col]):
+            # Elasticsearch doesn't like NaN, change to None
+            adm1 = None
+        else:
+            adm1 = row[adm1_col] 
         res = geo.lookup_city(city = row[city_col], 
-                              adm1 = row[adm1_col], 
+                              adm1 = adm1, 
                               country = row[country_col])
         try:
             gc = {"admin1_code" : res['geo']['admin1_code'],
