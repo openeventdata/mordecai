@@ -147,9 +147,10 @@ When instantiating the `Geoparser()` module, the following options can be change
     Elasticsearch database. Defaults to `True`, which gives a ~6x speedup.
 
 `geoparse` is the primary endpoint and the only one that most users will need.
-Other methods are primarily internal to Mordecai but may be directly useful in
-some cases:
+Other, mostly internal, methods may be useful in some cases:
 
+- `lookup_city` takes a city name, country, and (optionally) ADM1/state/governorate and 
+    does a rule-based lookup for the city.
 - `infer_country` take a document and attempts to infer the most probable
     country for each.
 - `query_geonames` and `query_geonames_country` can be used for performing a

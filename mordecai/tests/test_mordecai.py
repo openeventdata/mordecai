@@ -361,3 +361,32 @@ def test_issue_53(geo):
 def test_issue_68_verbose(geo):
     res = geo.geoparse("The ship entered Greenville from Tarboro", verbose=True)
     assert res
+
+def test_city_lookup(geo):
+    # two easy cases
+    res = geo.lookup_city("Norman", adm1 = "OK", country = "USA")
+    assert res['geo']['geonameid'] == '4543762'
+    res = geo.lookup_city("College Park", adm1 = "MD", country = "USA") 
+    assert res['geo']['geonameid'] == '4351977'
+    res = geo.lookup_city("College Park", adm1 = "OK", country = "USA") 
+    assert res['geo'] is None
+    # for some reason, Cambridge neighborhoods are PPL, not PPLX.
+    res =  geo.lookup_city("East Cambridge", adm1 = "MA", country = "USA")
+    assert res['geo']['geonameid'] == '5152577'
+    assert res['geo']['feature_code'] == 'PPL'
+    # Non-US check
+    res =  geo.lookup_city("Aleppo", adm1 = "Aleppo", country = "SYR")
+    assert res['geo']['feature_code'] == 'PPLA'
+    assert res['geo']['geonameid'] == '170063'
+    res = geo.lookup_city("Munich", country = "DEU")
+    assert res['geo']['geonameid'] == '2867714'
+    # Another US check
+    res =  geo.lookup_city("Aleppo", country = "USA")
+    assert res['geo']['geonameid'] == '4556251'
+    # test neighborhood
+    res = geo.lookup_city("Bustan al-Qasr", adm1 = "Aleppo", country = "SYR")
+    assert res['geo']['feature_code'] == 'PPLX'
+    assert res['geo']['geonameid'] == '7753543'
+    # check nonsense
+    res = geo.lookup_city("qwertyqwerty", adm1 = "Aleppo", country = "SYR")
+    assert res['geo'] is None
