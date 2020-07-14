@@ -1,4 +1,4 @@
-import keras
+from tensorflow import keras
 import pandas as pd
 import numpy as np
 from collections import Counter
@@ -11,6 +11,9 @@ from elasticsearch.exceptions import ConnectionTimeout, ConnectionError
 import multiprocessing
 from tqdm import tqdm
 import warnings
+import re
+
+import traceback
 
 try:
     from functools import lru_cache
@@ -18,23 +21,23 @@ except ImportError:
     from backports.functools_lru_cache import lru_cache
     print("Mordecai requires Python 3 and seems to be running in Python 2.")
 
-try:
-    nlp
-except NameError:
-    try:
-        nlp = spacy.load('en_core_web_lg', disable=['parser', 'tagger'])
-        #nlp = spacy.load('en_core_web_lg', disable=['tagger'])
-    except OSError:
-        print("""ERROR: No spaCy NLP model installed.
-Install with this command: `python -m spacy download en_core_web_lg`.""")
-
 
 class Geoparser:
-    def __init__(self, es_hosts=None, es_port=None, es_ssl=False, es_auth=None,
+    def __init__(self, nlp=None, es_hosts=None, es_port=None, es_ssl=False, es_auth=None,
                  verbose=False, country_threshold=0.6, threads=True,
-                 progress=True, mod_date="2018-06-05", **kwargs):
+                 progress=True, training=None, models_path=None, **kwargs):
         DATA_PATH = pkg_resources.resource_filename('mordecai', 'data/')
-        MODELS_PATH = pkg_resources.resource_filename('mordecai', 'models/')
+        if not models_path:
+            models_path = pkg_resources.resource_filename('mordecai', 'models/')
+            print("Models path:", models_path)
+        if nlp:
+            self.nlp = nlp
+        else:
+            try:
+                self.nlp = spacy.load('en_core_web_lg', disable=['parser', 'tagger']) 
+            except OSError:
+                print("""ERROR: No spaCy NLP model installed. Install with this command: 
+                `python -m spacy download en_core_web_lg`.""") 
         self._cts = utilities.country_list_maker()
         self._just_cts = utilities.country_list_maker()
         self._inv_cts = utilities.make_inv_cts(self._cts)
@@ -45,8 +48,12 @@ class Geoparser:
         self._both_codes = utilities.make_country_nationality_list(self._cts, DATA_PATH + "nat_df.csv")
         self._admin1_dict = utilities.read_in_admin1(DATA_PATH + "admin1CodesASCII.json")
         self.conn = utilities.setup_es(es_hosts, es_port, es_ssl, es_auth)
-        self.country_model = keras.models.load_model(MODELS_PATH + "country_model.h5")
-        self.rank_model = keras.models.load_model(MODELS_PATH + "rank_model.h5")
+        if not training:
+            # when retraining models, don't load old models
+            self.country_model = keras.models.load_model(models_path + "country_model.h5")
+            self.rank_model = keras.models.load_model(models_path + "rank_model.h5")
+        elif training == "ranker":
+            self.country_model = keras.models.load_model(models_path + "country_model.h5")
         self._skip_list = utilities.make_skip_list(self._cts)
         self.training_setting = False  # make this true if you want training formatted
         # if the best country guess is below the country threshold, don't return anything at all
@@ -69,9 +76,10 @@ Mordecai needs access to the Geonames/Elasticsearch gazetteer to function.
 See https://github.com/openeventdata/mordecai#installation-and-requirements
 for instructions on setting up Geonames/Elasticsearch""".format(es_hosts, es_port))
         es_date = utilities.check_geonames_date(self.conn)
+        mod_date = "2020-07-11"
         if es_date != mod_date:
-            print("""You may be using an outdated Geonames index.
-Your index is from {0}, while the most recent is {1}. Please see
+            print("""You may be using an outdated Geonames index/Mordecai version.
+Your index is from {0}, while your Mordecai version is from {1}. Please see
 https://github.com/openeventdata/mordecai/ for instructions on updating.""".format(es_date, mod_date))
 
 
@@ -132,8 +140,6 @@ https://github.com/openeventdata/mordecai/ for instructions on updating.""".form
                     'town', 'village', 'prison', "river", "valley", "provincial", "prison",
                     "region", "municipality", "state", "territory", "of", "in",
                     "county", "central"]
-                    # maybe have 'city'? Works differently in different countries
-                    # also, "District of Columbia". Might need to use cap/no cap
         keep_positions = []
         for word in ent:
             if word.text.lower() not in dump_list:
@@ -341,16 +347,32 @@ https://github.com/openeventdata/mordecai/ for instructions on updating.""".form
         return es_result
 
 
-    @lru_cache(maxsize=250)
-    def query_geonames_country(self, placename, country):
+    #@lru_cache(maxsize=250)  # cache won't work with dictionary inputs
+    def query_geonames_country(self, placename, country, filter_params=None):
         """
-        Like query_geonames, but this time limited to a specified country.
+        Like query_geonames, but limited to a specified country or (optionally) another filter.
+
+        The filter_params argument can be used to limit results to a particular adm1 (e.g.
+        {"adm1" : "09"}) or feature type {"feature_code" : "adm1"}.
+
+        Parameters
+        ---------
+        placename: str, the place name to search for
+        country: str, country to limit search to in ISO 3 char code
+        filter_params: dict, a further filter to apply, e.g. {"feature_code":"ADM1"}
+
+        Returns
+        ------
+        out: dict, the structured geonames results
         """
         # first, try for an exact phrase match
         q = {"multi_match": {"query": placename,
                              "fields": ['name^5', 'asciiname^5', 'alternativenames'],
                             "type": "phrase"}}
-        res = self.conn.filter("term", country_code3=country).query(q)[0:50].execute()
+        if filter_params:
+            res = self.conn.filter("term", **filter_params).filter("term", country_code3=country).query(q)[0:50].execute()
+        else:
+            res = self.conn.filter("term", country_code3=country).query(q)[0:50].execute()
 
         # if no results, use some fuzziness, but still require all terms to be present.
         # Fuzzy is not allowed in "phrase" searches.
@@ -358,12 +380,16 @@ https://github.com/openeventdata/mordecai/ for instructions on updating.""".form
             # tried wrapping this in a {"constant_score" : {"query": ... but made it worse
             q = {"multi_match": {"query": placename,
                                  "fields": ['name', 'asciiname', 'alternativenames'],
-                                     "fuzziness": 1,
+                                     "fuzziness": 2,
                                      "operator":   "and"}}
-            res = self.conn.filter("term", country_code3=country).query(q)[0:50].execute()
+            if filter_params:
+                res = self.conn.filter("term", **filter_params).filter("term", country_code3=country).query(q)[0:50].execute()
+            else:
+                res = self.conn.filter("term", country_code3=country).query(q)[0:50].execute()
         out = utilities.structure_results(res)
         return out
 
+ 
 
     # The following three lookup functions are used for the threaded queries.
     def proc_lookup(self, loc):
@@ -411,7 +437,7 @@ https://github.com/openeventdata/mordecai/ for instructions on updating.""".form
                   "capital", "town", "towns", "neighborhood", "neighborhoods",
                  "municipality"]
         ADM1_list = ["province", "governorate", "state", "department", "oblast",
-                     "changwat"]
+                     "changwat", "countryside"]
         ADM2_list = ["district", "rayon", "amphoe", "county"]
         A_other = ["region"]
         AIRPORT_list = ["airport"]
@@ -466,7 +492,7 @@ https://github.com/openeventdata/mordecai/ for instructions on updating.""".form
             to be renamed "meta" or be deleted.)
         """
         if not hasattr(doc, "ents"):
-            doc = nlp(doc)
+            doc = self.nlp(doc)
         # initialize the place to store finalized tasks
         task_list = []
 
@@ -639,7 +665,8 @@ https://github.com/openeventdata/mordecai/ for instructions on updating.""".form
             X_mat.append(np.asarray(features))
 
         keras_inputs = {"labels": possible_labels,
-                        "matrix" : np.asmatrix(X_mat)}
+                        "matrix": np.asmatrix(X_mat),
+                        "word": loc['word']}
         return keras_inputs
 
 
@@ -680,17 +707,15 @@ https://github.com/openeventdata/mordecai/ for instructions on updating.""".form
 
         """
         if not hasattr(doc, "ents"):
-            doc = nlp(doc)
+            doc = self.nlp(doc)
         proced = self.make_country_features(doc, require_maj=False)
         if not proced:
             pass
-            # logging!
-            #print("Nothing came back from make_country_features")
         feat_list = []
-        #proced = self.ent_list_to_matrix(proced)
 
         for loc in proced:
             feat = self.make_country_matrix(loc)
+            #print("feat:", feat)
             #labels = loc['labels']
             feat_list.append(feat)
             #try:
@@ -703,6 +728,7 @@ https://github.com/openeventdata/mordecai/ for instructions on updating.""".form
                     labels = np.asarray(labels)[ranks]
                     prediction = prediction[ranks]
                 except ValueError:
+                    print(traceback.print_exc())
                     prediction = np.array([0])
                     labels = np.array([""])
 
@@ -925,6 +951,173 @@ https://github.com/openeventdata/mordecai/ for instructions on updating.""".form
                    "feature_code" : ""}
             return new_res
 
+    def _check_exact(self, placename, match_list):
+        """Find Geonames entries that have an exact match place name.
+
+        When multiple hits come back for a query, this looks to see if any of them have
+        an exact place name match in the `alternative_names` field. If only one does,
+        it returns that one. Otherwise it returns None.
+        """
+        exact_matches = []
+        for m in match_list:
+            all_names = m['alternativenames']
+            all_names.append(m['name'])
+            if placename in all_names:
+                exact_matches.append(m)
+        if len(exact_matches) == 1:
+            return exact_matches[0]
+        else:
+            None
+
+    def _check_editdist(self, placename, matchlist, threshold=2):
+        """
+        Check canonical, alternative, and ascii names for a close match.
+
+        Parameters
+        ------------
+        placename: str
+          The placename being searched for
+        matchlist: list
+          The results from Elasticsearch
+        threshold: int
+          The maximum edits allowed (defaults to 2)
+
+        Returns
+        --------
+        tuple, the edit distance and the actual match
+        """
+        min_dists = []
+        avg_dists = []
+        for m in matchlist:
+            all_names = m['alternativenames']
+            all_names.extend([m['asciiname'], m['name']])
+
+            ds = [editdistance.eval(placename, i)  for i in all_names]
+            min_dists.append(np.min(ds))
+            avg_dists.append(np.mean(ds))
+
+        if np.sum([i <= threshold for i in min_dists]) == 1:
+            dist = round(np.min(min_dists), 2)
+            m = matchlist[np.argmin(min_dists)]
+            reason = "CAUTION: Single edit distance match."
+            info = "One entry of {0} within minimum edit distance of {1}".format(len(matchlist), dist)
+            return m, reason, info
+        elif np.sum([i <= threshold for i in min_dists]) > 1:
+            dist = round(np.min(min_dists), 2)
+            m = matchlist[np.argmin(avg_dists)]
+            reason = "CAUTION: Best of several edit distance matches."
+            info = "{0} entries within minimum edit distance. Picking closest average distance: {1}.".format(len(matchlist), round(np.min(avg_dists), 2))
+            return m, reason, info
+        else:
+            return None, None, None
+
+    def lookup_city(self, city, country, adm1=None):
+        """
+        Return the "best" Geonames entry for a city name.
+
+        Queries the ES-Geonames gazetteer for the the given city, province/state/ADM1, and country,
+        and uses a set of  rules to determine the best result to return. If adm1 is supplied,
+        only results from that ADM1 will be returned.
+
+        This code was modified from Halterman's (2019) Syria casualties working paper.
+
+        Parameters
+        ----------
+        placename: str
+          The name of the city to look up
+        country: str
+          The three character country code (iso3c)
+        adm1: str
+          (Optional) the name of the state/governorate/province
+
+        Returns
+        -------
+        match: dict or list
+          The single entry from Geonames that best matches the query, or [] if no match at all.
+        """
+        adm_limit = None
+        if adm1:
+            adm_res = self.query_geonames_country(placename=adm1,
+                                                 country=country,
+                                                 filter_params={"feature_code": "ADM1"})
+            adm_res = adm_res['hits']['hits']
+            if len(adm_res) == 1:
+                adm1 = adm_res[0]['admin1_code']
+                adm_limit = {"admin1_code" : adm1}
+        res = self.query_geonames_country(city, country, adm_limit)
+        res = res['hits']['hits']
+
+        # look for a city first
+        match = [i for i in res if i['feature_code'] in ['PPL', 'PPLA', 'PPLC', 'PPLA2', 'PPLA3', 'PPLA3']]
+        if match:
+            if len(match) == 1:
+                return {"geo" : match[0],
+                        "query" : city,
+                        "info" : "{0} total results of all types".format(len(res)),
+                        "reason" : "Single match for city in Elasticsearch with name, ADM1, country."}
+            # if there's more than one match:
+            m = self._check_exact(city, match)
+            if m:
+                return {"geo" : m,
+                        "query" : city,
+                            "info": "{0} elasticsearch matches for cities out of {1} total results of all types".format(len(match), len(res)),
+                        "reason" : "Exact name match for city."}
+            # check the editdistance
+            m, reason, info = self._check_editdist(city, match)
+            if m:
+                return {"geo" : m,
+                        "query" : city,
+                        "info": info,
+                        "reason" : reason}
+
+        # if there's no city match, look for a neighborhood
+        match = [i for i in res if i['feature_code'] in ['PPLX', 'LCTY', 'PPLL', 'AREA']]
+        if match:
+            #print("neighborhood")
+            # if there's just a single match, we're done
+            if len(match) == 1:
+                reason = "Single elasticsearch match for neighborhood."
+                info = "{0} total results of all types".format(len(res))
+                return {"geo" : match[0],
+                    "query" : city,
+                    "info" : info,
+                    "reason" : reason}
+            # if there are multiple matches, look for exact matches
+            else:
+                m = self._check_exact(city, match)
+                if m:
+                    reason = "Exact place name match for neighborhood."
+                    info = "{0} elasticsearch matches out of {1} total results of all types".format(len(match), len(res))
+                    return {"geo" : m,
+                            "query" : city,
+                            "info" : info,
+                            "reason" : reason}
+
+                m, reason, info = self._check_editdist(city, match)
+                if m:
+                    return {"geo" : m,
+                        "query" : city,
+                        "info": info,
+                        "reason" : reason}
+
+        if len(res) == 1:
+            reason = "CAUTION: One fuzzy match, not a city-type location."
+            return {"geo" : res[0],
+                    "query" : city,
+                    "reason" : reason,
+                    "info" :  "{0} total results of all types.".format(len(res))}
+
+        if len(res) == 0:
+            reason = "FAILURE: No fuzzy match for city or neighborhood."
+        else:
+            reason = "FAILURE: Too many matches for city or neighborhood, none exact."
+        return {"geo" : None,
+                    "query" : city,
+                    "reason" : reason,
+                    "info" :  "{0} total results of all types.".format(len(res))}
+
+
+
     def clean_proced(self, proced):
         """Small helper function to delete the features from the final dictionary.
         These features are mostly interesting for debugging but won't be relevant for most users.
@@ -977,7 +1170,7 @@ https://github.com/openeventdata/mordecai/ for instructions on updating.""".form
             and optionally, the input features.
         """
         if not hasattr(doc, "ents"):
-            doc = nlp(doc)
+            doc = self.nlp(doc)
         proced = self.infer_country(doc)
         if not proced:
             return []
@@ -991,8 +1184,14 @@ https://github.com/openeventdata/mordecai/ for instructions on updating.""".form
         else:
             results = []
             for loc in proced:
+                if self.is_country(loc['word']):
+                    # if it's a country name, just query that
+                    res = self.query_geonames_country(loc['word'], 
+                                                      self._just_cts[loc['word']],
+                                                      filter_params={"feature_code": "PCLI"}) 
+                    results.append(res)
                 # if the confidence is too low, don't use the country info
-                if loc['country_conf'] > self.country_threshold:
+                elif loc['country_conf'] > self.country_threshold:
                     res = self.query_geonames_country(loc['word'], loc['country_predicted'])
                     results.append(res)
                 else:
@@ -1013,16 +1212,20 @@ https://github.com/openeventdata/mordecai/ for instructions on updating.""".form
                 # This happens if there are no results...
                 continue
             all_tasks, sorted_meta, sorted_X = self.format_for_prodigy(X, meta, loc['word'], return_feature_subset=True)
-            fl_pad = np.pad(sorted_X, ((0, 4 - sorted_X.shape[0]), (0, 0)), 'constant')
-            fl_unwrap = fl_pad.flatten()
-            prediction = self.rank_model.predict(np.asmatrix(fl_unwrap))
+            fl_pad = np.pad(sorted_X, ((0, 5 - sorted_X.shape[0]), (0, 0)), 'constant')
+            fl_unwrap = np.asmatrix(fl_pad.flatten())
+            prediction = self.rank_model.predict(fl_unwrap)
             place_confidence = prediction.max()
             loc['geo'] = sorted_meta[prediction.argmax()]
             loc['place_confidence'] = place_confidence
-        if not verbose:
+        if not self.verbose:
             proced = self.clean_proced(proced)
         return proced
 
+
+                #labels = np.pad(labels, (0, 5 - len(labels)), 'constant')
+                # pad the matrix with empty rows
+                #fl_pad = np.pad(fl_subset, ((0, 5 - fl_subset.shape[0]), (0, 0)), 'constant')
 
     def batch_geoparse(self, text_list):
         """
@@ -1042,7 +1245,7 @@ https://github.com/openeventdata/mordecai/ for instructions on updating.""".form
         """
         if not self.threads:
             print("batch_geoparsed should be used with threaded searches. Please set `threads=True` when initializing the geoparser.")
-        nlped_docs = list(nlp.pipe(text_list, as_tuples=False, n_threads=multiprocessing.cpu_count()))
+        nlped_docs = list(self.nlp.pipe(text_list, as_tuples=False, n_threads=multiprocessing.cpu_count()))
         processed = []
         for i in tqdm(nlped_docs, disable=not self.progress):
             p = self.geoparse(i)

@@ -1,0 +1,7 @@
+,admin1_code,admin2_code,asciiname,name,geonameid,feature_class,feature_code,country_code3,lat,lon,search_city,search_adm1,search_country,info,reason
+0,OK,027,Norman,Norman,4543762,P,PPLA2,USA,35.22257,-97.43948,Norman,OK,USA,50 total results of all types,"Single match for city in Elasticsearch with name, ADM1, country."
+1,MD,033,College Park,College Park,4351977,P,PPL,USA,38.98067,-76.93692,College Park,MD,USA,2 elasticsearch matches for cities out of 37 total results of all types,Exact name match for city.
+2,ID,005,Cambridge,Cambridge,5587778,P,PPL,USA,42.45047,-112.11663,Cambridge,MA,USA,33 entries within minimum edit distance. Picking closest average distance: 2.25.,CAUTION: Best of several edit distance matches.
+3,,,,,,,,,,,Whaugbggoan,OK,USA,0 total results of all types.,FAILURE: No fuzzy match for city or neighborhood.
+4,DC,001,Columbia Heights,Columbia Heights,4138102,P,PPL,USA,38.92567,-77.02942,Columbia Heights,DC,USA,6 total results of all types,"Single match for city in Elasticsearch with name, ADM1, country."
+5,09,,Aleppo,Aleppo,170063,P,PPLA,SYR,36.20124,37.16117,Aleppo,Aleppo,SYR,9 total results of all types,"Single match for city in Elasticsearch with name, ADM1, country."

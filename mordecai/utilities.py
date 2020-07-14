@@ -92,8 +92,8 @@ def country_list_maker():
     "Venezuela":"VEN",
     "Vietnam":"VNM", "Wallis Futuna":"WLF",
     "Western Sahara":"ESH", "Yemen":"YEM", "Zambia":"ZMB", "Zimbabwe":"ZWE",
-    "UK":"GBR",  "USA":"USA", "America":"USA",  "Palestinian Territories":"PSE",
-    "Congo Brazzaville":"COG", "Congo Kinshasa":"COD", "Wales" : "GBR",
+    "UK":"GBR", "United States":"USA", "USA":"USA", "America":"USA",  "Palestinian Territories":"PSE",
+    "Congo Brazzaville":"COG", "DRC":"COD", "Congo Kinshasa":"COD", "Wales" : "GBR",
     "Scotland" : "GBR", "Britain" : "GBR",}
 
     return cts
@@ -218,11 +218,11 @@ def read_in_admin1(filepath):
 def structure_results(res):
     """Format Elasticsearch result as Python dictionary"""
     out = {'hits': {'hits': []}}
-    keys = [u'admin1_code', u'admin2_code', u'admin3_code', u'admin4_code',
-            u'alternativenames', u'asciiname', u'cc2', u'coordinates',
-            u'country_code2', u'country_code3', u'dem', u'elevation',
-            u'feature_class', u'feature_code', u'geonameid',
-            u'modification_date', u'name', u'population', u'timezone']
+    keys = ['admin1_code', 'admin2_code', 'admin3_code', 'admin4_code',
+            'alternativenames', 'asciiname',  'coordinates',
+            'country_code2', 'country_code3', 
+            'feature_class', 'feature_code', 'geonameid',
+            'modification_date', 'name', 'population']
     for i in res:
         i_out = {}
         for k in keys:
