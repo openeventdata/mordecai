@@ -92,8 +92,8 @@ def country_list_maker():
     "Venezuela":"VEN",
     "Vietnam":"VNM", "Wallis Futuna":"WLF",
     "Western Sahara":"ESH", "Yemen":"YEM", "Zambia":"ZMB", "Zimbabwe":"ZWE",
-    "UK":"GBR",  "USA":"USA", "America":"USA",  "Palestinian Territories":"PSE",
-    "Congo Brazzaville":"COG", "Congo Kinshasa":"COD", "Wales" : "GBR",
+    "UK":"GBR", "United States":"USA", "USA":"USA", "America":"USA",  "Palestinian Territories":"PSE",
+    "Congo Brazzaville":"COG", "DRC":"COD", "Congo Kinshasa":"COD", "Wales" : "GBR",
     "Scotland" : "GBR", "Britain" : "GBR",}
 
     return cts

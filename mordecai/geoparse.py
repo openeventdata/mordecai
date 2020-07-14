@@ -140,8 +140,6 @@ https://github.com/openeventdata/mordecai/ for instructions on updating.""".form
                     'town', 'village', 'prison', "river", "valley", "provincial", "prison",
                     "region", "municipality", "state", "territory", "of", "in",
                     "county", "central"]
-                    # maybe have 'city'? Works differently in different countries
-                    # also, "District of Columbia". Might need to use cap/no cap
         keep_positions = []
         for word in ent:
             if word.text.lower() not in dump_list:
@@ -1186,8 +1184,14 @@ https://github.com/openeventdata/mordecai/ for instructions on updating.""".form
         else:
             results = []
             for loc in proced:
+                if self.is_country(loc['word']):
+                    # if it's a country name, just query that
+                    res = self.query_geonames_country(loc['word'], 
+                                                      self._just_cts[loc['word']],
+                                                      filter_params={"feature_code": "PCLI"}) 
+                    results.append(res)
                 # if the confidence is too low, don't use the country info
-                if loc['country_conf'] > self.country_threshold:
+                elif loc['country_conf'] > self.country_threshold:
                     res = self.query_geonames_country(loc['word'], loc['country_predicted'])
                     results.append(res)
                 else:
