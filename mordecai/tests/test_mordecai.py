@@ -219,12 +219,12 @@ def test_admin1_thread(geo_thread):
 def test_weird_loc(geo):
     doc = "There's fighting in Ajnsdgjb city."
     loc = geo.geoparse(doc)
-    assert loc[0]['country_conf'] < 0.001
+    assert loc[0]['country_conf'] < 0.3
 
 def test_weird_loc_thread(geo_thread):
     doc = "There's fighting in GOUOsabgoajwh city."
     loc = geo_thread.geoparse(doc)
-    assert loc[0]['country_conf'] < 0.001
+    assert loc[0]['country_conf'] < 0.3
 
 def test_no_loc(geo):
     doc = "The dog ran through the park."
@@ -400,3 +400,11 @@ def test_issue_77(geo):
     assert res[0]['geo']['feature_code'] == "PCLI"
     res = geo.geoparse("We traveled to France.")
     assert res[0]['geo']['feature_code'] == "PCLI"
+
+def test_issue_82(geo):
+    ents = geo.nlp(""" Wuppertal (remote-option) """).ents
+    res = geo.geoparse( """ Wuppertal (remote-option) """ )
+    assert len(ents) == len(res)
+    ents = geo.nlp(""" Wuppertal remote-option """).ents
+    res = geo.geoparse( """ Wuppertal remote-option """ )
+    assert len(ents) == len(res)
