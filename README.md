@@ -1,8 +1,8 @@
 ![](paper/mordecai_geoparsing.png)
 
-Full text geoparsing as a Python library. Extract the place names from a piece of
-text, resolve them to the correct place, and return their coordinates and
-structured geographic information.
+Full text geoparsing as a Python library. Extract the place names from a
+piece of English-language text, resolve them to the correct place, and return
+their coordinates and structured geographic information.
 
 Example usage
 -------------
@@ -118,11 +118,12 @@ from it.
   extracted place names.
 
 - It uses neural networks implemented in [Keras](https://keras.io/) and trained on new annotated
-  data labeled with [Prodigy](https://prodi.gy/) to infer the correct country and correct gazetteer entries for each
+  English-language data labeled with [Prodigy](https://prodi.gy/) to infer the correct country and correct gazetteer entries for each
   placename. 
 
 The training data for the two models includes copyrighted text so cannot be
-shared freely.
+shared freely. Applying Mordecai to non-English language text would require labeling data
+in the target language and retraining.
 
 API and Configuration
 ---------------------
