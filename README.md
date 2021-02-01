@@ -4,6 +4,9 @@ Full text geoparsing as a Python library. Extract the place names from a
 piece of English-language text, resolve them to the correct place, and return
 their coordinates and structured geographic information.
 
+**Mordecai is ready for an upgrade!** Please take the user survey [here](https://z0l4ihmu0ud.typeform.com/to/b8FmCfMt) 
+to help shape what v3 will look like.
+
 Example usage
 -------------
 
