@@ -711,26 +711,19 @@ https://github.com/openeventdata/mordecai/ for instructions on updating.""".form
         proced = self.make_country_features(doc, require_maj=False)
         if not proced:
             pass
-        feat_list = []
-
+        
         for loc in proced:
             feat = self.make_country_matrix(loc)
-            #print("feat:", feat)
-            #labels = loc['labels']
-            feat_list.append(feat)
-            #try:
-            # for each potential country...
-            for n, i in enumerate(feat_list):
-                labels = i['labels']
-                try:
-                    prediction = self.country_model.predict(i['matrix']).transpose()[0]
-                    ranks = prediction.argsort()[::-1]
-                    labels = np.asarray(labels)[ranks]
-                    prediction = prediction[ranks]
-                except ValueError:
-                    print(traceback.print_exc())
-                    prediction = np.array([0])
-                    labels = np.array([""])
+            labels = feat['labels']
+            try:
+                prediction = self.country_model.predict(feat['matrix']).transpose()[0]
+                ranks = prediction.argsort()[::-1]
+                labels = np.asarray(labels)[ranks]
+                prediction = prediction[ranks]
+            except ValueError:
+                print(traceback.print_exc())
+                prediction = np.array([0])
+                labels = np.array([""])
 
             loc['country_predicted'] = labels[0]
             loc['country_conf'] = prediction[0]
